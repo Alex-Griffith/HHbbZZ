@@ -28,7 +28,7 @@ def parse_arguments():
     parser.add_argument("-d", "--DownloadFileToLocalThenRun", default=True, type=bool, help="Download file to local then run")
     parser.add_argument("--WithSyst", default=False, action="store_true", help="Do not run systematics")
     parser.add_argument("--DEBUG", default=False, action="store_true", help="Print debug information")
-    parser.add_argument("--channels",  choices=["all", "4l", "2l2q", "2l2v"],  default="all",
+    parser.add_argument("--channels",  choices=["all", "4l", "2l2q", "2l2v"],  default="2l2v",
                         help="Channels to run: all, 4l, 2l2q, or 2l2v")
     return parser.parse_args()
 

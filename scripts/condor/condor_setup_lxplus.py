@@ -7,7 +7,7 @@ import os
 import sys
 import datetime
 
-sys.path.append("Utils/.")
+sys.path.append("scripts/utils/.")
 
 from color_style import style
 
@@ -83,7 +83,7 @@ queue infile, outfile, eospath, outfilename, logtxt from {condor_file_name}.txt
 """)
     outjdl_file.close()
 
-    with open('input_data_Files/'+InputFileFromWhereReadDASNames) as in_file:
+    with open('input_data_files/'+InputFileFromWhereReadDASNames) as in_file:
         count = 0
         count_jobs = 0
         output_string_list = []
