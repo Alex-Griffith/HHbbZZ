@@ -36,7 +36,7 @@ def main(args):
 
     # Create log files
     import infoCreaterGit
-    SumamryOfCurrentSubmission = raw_input("\n\nWrite summary for current job submission: ")
+    SumamryOfCurrentSubmission = input("\n\nWrite summary for current job submission: ")
     infoLogFiles = infoCreaterGit.BasicInfoCreater('summary.dat',SumamryOfCurrentSubmission)
     infoLogFiles.generate_git_patch_and_log()
 
@@ -55,7 +55,7 @@ def main(args):
     if not DontCreateTarFile: os.system('rm -f CMSSW*.tgz')
     import makeTarFile
     if not DontCreateTarFile: makeTarFile.make_tarfile(cmsswDirPath, CMSSWRel+".tgz")
-    print("copying the "+CMSSWRel+".tgz  file to eos path: "+storeDir+"\n")
+    print(("copying the "+CMSSWRel+".tgz  file to eos path: "+storeDir+"\n"))
     os.system('cp ' + CMSSWRel+".tgz" + ' '+storeDir+'/' + CMSSWRel+".tgz")
 
     post_proc_to_run = "post_proc.py"
@@ -86,12 +86,12 @@ def main(args):
             if SampleDASName[0] == "#": continue
             count = count +1
             #if count > 1: break
-            print(style.RED +"="*51+style.RESET+"\n")
-            print ("==> Sample : ",count)
+            print((style.RED +"="*51+style.RESET+"\n"))
+            print(("==> Sample : ",count))
             sample_name = SampleDASName.split('/')[1]
-            print("==> sample_name = ",sample_name)
+            print(("==> sample_name = ",sample_name))
             campaign = SampleDASName.split('/')[2].split('-')[0]
-            print("==> campaign = ",campaign)
+            print(("==> campaign = ",campaign))
             ########################################
             #
             #      Create output directory
@@ -100,13 +100,13 @@ def main(args):
             if (SampleDASName.strip()).endswith("/NANOAOD"): # if the sample name ends with /NANOAOD, then it is a data if it ends with /NANOAODSIM then it is a MC. As the line contain the "\n" at the end, so we need to use the strip() function.
                 output_string = sample_name + os.sep + campaign + os.sep + dirName
                 output_path = EOS_Output_path + os.sep + output_string
-                print("==> output_path = ",output_path)
+                print(("==> output_path = ",output_path))
                 os.system("mkdir -p "+ output_path)
                 infoLogFiles.send_git_log_and_patch_to_eos(output_path)
             else:
                 output_string = campaign + os.sep + sample_name + os.sep + dirName
                 output_path = EOS_Output_path+ os.sep + output_string
-                print("==> output_path = ",output_path)
+                print(("==> output_path = ",output_path))
                 os.system("mkdir -p "+output_path)
                 infoLogFiles.send_git_log_and_patch_to_eos(output_path)
             #  print "==> output_path = ",output_path
@@ -131,8 +131,8 @@ def main(args):
                 outjdl_file.write("Log  = "+output_log_path+"/"+sample_name+"_$(Process).log\n")
                 outjdl_file.write("Arguments = "+(xrd_redirector+root_file)+" "+output_path+"  "+EOS_Output_path+ " " + (root_file.split('/')[-1]).split('.')[0] + "\n")
                 outjdl_file.write("Queue \n")
-            print("Number of files: ",count_root_files)
-            print("Number of jobs (till now): ",count_jobs)
+            print(("Number of files: ",count_root_files))
+            print(("Number of jobs (till now): ",count_jobs))
         outjdl_file.close();
 
 
@@ -186,7 +186,7 @@ def main(args):
     print("cp /tmp/x509up_u48539 ~/")
     print("export X509_USER_PROXY=~/x509up_u48539")
     print("\n#Submit jobs:")
-    print("condor_submit "+condor_file_name+".jdl")
+    print(("condor_submit "+condor_file_name+".jdl"))
     #os.system("condor_submit "+condor_file_name+".jdl")
 
 # Below patch is to format the help command as it is

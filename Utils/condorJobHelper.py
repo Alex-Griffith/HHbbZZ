@@ -57,7 +57,7 @@ class condorJobHelper(object):
         outScript.write('\n'+'echo "'+'#'*51+'"')
         outScript.write('\n'+'echo "Input Arguments (CluserID): $1" ')
         outScript.write('\n'+'echo "Input Arguments (ProcessID): $2" ')
-        for x in xrange(3,len(self.Arguments)+3):
+        for x in range(3,len(self.Arguments)+3):
             outScript.write('\n'+'echo "Input Arguments: $'+x+'" ')
         outScript.write('\n'+'echo "'+'#'*51+'"')
         outScript.write('\n'+'')

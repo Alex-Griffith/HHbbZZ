@@ -37,19 +37,19 @@ category_sums = {}
 for filename in os.listdir(log_files_dir):
     if filename.endswith('.stdout'):
         file_path = os.path.join(log_files_dir, filename)
-        if DEBUG: print("\n\nFilename: "+log_files_dir+'/'+filename)
+        if DEBUG: print(("\n\nFilename: "+log_files_dir+'/'+filename))
 
         with open(file_path, 'r') as f:
             content = f.read()
 
             # Find events for each category based on the specified patterns
-            for category, pattern in patterns.items():
+            for category, pattern in list(patterns.items()):
                 match = pattern.search(content)
-                if DEBUG: print("{} {}".format(category, pattern))
-                if DEBUG: print("Match: {}".format(match))
+                if DEBUG: print(("{} {}".format(category, pattern)))
+                if DEBUG: print(("Match: {}".format(match)))
                 if match:
                     events = int(match.group(1))
-                    if DEBUG: print("{:25} {}".format(category, events))
+                    if DEBUG: print(("{:25} {}".format(category, events)))
                     if category in category_sums:
                         category_sums[category] += events
                     else:
@@ -57,5 +57,5 @@ for filename in os.listdir(log_files_dir):
 
 # Print the sum of events for each category
 if DEBUG: print("\n\n")
-for category, events in category_sums.items():
-    print("{category:17}: {events:>7} Events".format(category=category, events=events))
+for category, events in list(category_sums.items()):
+    print(("{category:17}: {events:>7} Events".format(category=category, events=events)))

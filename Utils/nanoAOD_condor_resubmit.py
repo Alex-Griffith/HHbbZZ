@@ -64,17 +64,17 @@ def list_root(directory):
 def submit_missing(InputJdlFile,resubmit=True):
   bashCommand = "condor_submit %s"%(InputJdlFile)
   if resubmit :
-    print 'Resubmitting now!'
+    print('Resubmitting now!')
     os.system(bashCommand)
   else :
-    print 'Ready to resubmit, please set resubmit to True if you are ready : '
-    print bashCommand
+    print('Ready to resubmit, please set resubmit to True if you are ready : ')
+    print(bashCommand)
 
 def prepare_runJobs_missing(FailedJobRootFile,InputJdlFile,CondorLogDir,EOSDir,Resubmit_no):
-  if DEBUG: print "FailedJobRootFile: ",FailedJobRootFile
-  if DEBUG: print "InputJdlFile: ",InputJdlFile
-  if DEBUG: print "CondorLogDir: ",CondorLogDir
-  if DEBUG: print "EOSDir: ",EOSDir
+  if DEBUG: print("FailedJobRootFile: ",FailedJobRootFile)
+  if DEBUG: print("InputJdlFile: ",InputJdlFile)
+  if DEBUG: print("CondorLogDir: ",CondorLogDir)
+  if DEBUG: print("EOSDir: ",EOSDir)
 
   bashCommand = "cp %s  original_%s"%(InputJdlFile,InputJdlFile)
   os.system(bashCommand)
@@ -84,36 +84,36 @@ def prepare_runJobs_missing(FailedJobRootFile,InputJdlFile,CondorLogDir,EOSDir,R
   outjdl_file = open(outjdl_fileName,"w")
 
   with open(InputJdlFile) as myfile:
-      head = [next(myfile) for x in xrange(7)]  # FIX: remove hardcoded number 7
+      head = [next(myfile) for x in range(7)]  # FIX: remove hardcoded number 7
 
   for lines in head:
     outjdl_file.write(lines)
 
   for RootFiles in FailedJobRootFile:
-    if DEBUG: print RootFiles
+    if DEBUG: print(RootFiles)
     bashCommand = "grep %s %s/*.stdout"%(RootFiles.replace(".root",""),CondorLogDir)
-    if DEBUG: print bashCommand
+    if DEBUG: print(bashCommand)
     grep_stdout_files = os.popen(bashCommand).read()
-    if DEBUG: print "~~"*51
-    if DEBUG: print grep_stdout_files.strip()
-    if DEBUG: print len(grep_stdout_files)
-    if DEBUG: print "~~"*51
+    if DEBUG: print("~~"*51)
+    if DEBUG: print(grep_stdout_files.strip())
+    if DEBUG: print(len(grep_stdout_files))
+    if DEBUG: print("~~"*51)
     OldRefFile = ""
     if grep_stdout_files.strip() != "":
-      if DEBUG: print "==> ",grep_stdout_files.strip().split(':')[0].replace('.stdout','')
+      if DEBUG: print("==> ",grep_stdout_files.strip().split(':')[0].replace('.stdout',''))
       if grep_stdout_files.strip().split(':')[0].replace('.stdout','').split('_')[-2] == "resubmit":
         OldRefFile = grep_stdout_files.strip().split(':')[0].replace('.stdout','').split('_')[-4]
       else:
         OldRefFile = grep_stdout_files.strip().split(':')[0].replace('.stdout','').split('_')[-1]
     grepCommand_GetJdlInfo = 'grep -A1 -B3 "'+RootFiles+'" '+InputJdlFile
-    if DEBUG: print grepCommand_GetJdlInfo
+    if DEBUG: print(grepCommand_GetJdlInfo)
     grep_condor_jdl_part = os.popen(grepCommand_GetJdlInfo).read()
-    if DEBUG: print "=="*51
-    if DEBUG: print grep_condor_jdl_part
+    if DEBUG: print("=="*51)
+    if DEBUG: print(grep_condor_jdl_part)
     updateString = grep_condor_jdl_part.replace('$(Process)',OldRefFile+'_$(Process)'+ '_resubmit_' +Resubmit_no)
-    if DEBUG: print "=="*51
-    if DEBUG: print updateString
-    if DEBUG: print "=="*51
+    if DEBUG: print("=="*51)
+    if DEBUG: print(updateString)
+    if DEBUG: print("=="*51)
     outjdl_file.write(updateString)
   outjdl_file.close()
   return outjdl_fileName
@@ -138,18 +138,18 @@ def main():
   # print full_output
   present_output, present_output_WithPath =  list_root(stageDir)
   # print present_output
-  print "length(jdl file): ",len(full_output)
-  print "Length(output root file): ",len(present_output)
+  print("length(jdl file): ",len(full_output))
+  print("Length(output root file): ",len(present_output))
   not_finished = list(set(full_output) - set(present_output))
-  print not_finished
+  print(not_finished)
   corrupted_files = files_to_remove(present_output_WithPath,stageDir)
   not_finished += corrupted_files
   print(not_finished)
-  print 'Number of missing files : ',len(not_finished)
-  print 'Missing the following files : ',not_finished
+  print('Number of missing files : ',len(not_finished))
+  print('Missing the following files : ',not_finished)
   jdlfile = prepare_runJobs_missing(not_finished,options.input,options.dir,stageDir,str(options.resubmit_no))
-  print jdlfile
-  print 'Submitting missing jobs : '
+  print(jdlfile)
+  print('Submitting missing jobs : ')
   submit_missing(jdlfile,options.resubmit)
 
 

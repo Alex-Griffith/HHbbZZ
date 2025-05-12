@@ -35,7 +35,7 @@ class BasicInfoCreater:
         self.generate_git_log()
 
     def send_git_log_and_patch_to_eos(self, output_folder):
-        print("Copying {} to path: {}".format(self.logFileName, output_folder))
+        print(("Copying {} to path: {}".format(self.logFileName, output_folder)))
         os.system('cp -f {} {}/{}'.format(self.logFileName, output_folder, self.logFileName))
-        print("Copying {} to path: {}".format(self.GITPATCH, output_folder))
+        print(("Copying {} to path: {}".format(self.GITPATCH, output_folder)))
         os.system('cp -f {} {}/{}'.format(self.GITPATCH, output_folder, self.GITPATCH))

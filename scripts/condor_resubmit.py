@@ -45,19 +45,19 @@ string_to_search = "preselected entries from root:"
 
 grepCommand = 'grep -L  "'+string_to_search+'" '+ path + os.sep +'*_1.stdout'
 grepCommand = grepCommand.replace('//','/')
-print 'grep command: ',grepCommand
+print('grep command: ',grepCommand)
 output = os.popen(grepCommand).read()
 print('output:')
 
 outjdl_file = open(condor_file_name+'_resubmit_'+Resubmit_no+".jdl","w")
 with open(condor_file_name+".jdl") as myfile:
-    head = [next(myfile) for x in xrange(7)]
+    head = [next(myfile) for x in range(7)]
 
 for lines in head:
   outjdl_file.write(lines)
 
 for lines in output.split():
-  print "==> ",lines.strip()
+  print("==> ",lines.strip())
   # print "==> ",lines.strip().split('/')[-1].replace('.stdout','')
   if lines.strip().split('/')[-1].replace('.stdout','').split('_')[-2] == "resubmit":
     OldRefFile = lines.strip().split('/')[-1].replace('.stdout','').split('_')[-4]
@@ -75,4 +75,4 @@ for lines in output.split():
   outjdl_file.write(updateString)
 outjdl_file.close()
 
-print "===> ",outjdl_file
+print("===> ",outjdl_file)

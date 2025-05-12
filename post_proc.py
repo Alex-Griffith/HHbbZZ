@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import os
 import sys
 import argparse
@@ -54,7 +54,7 @@ def main():
     else:
         print("INFO: No input file specified. Using default file list.")
         testfilelist = getListFromFile("ExampleInputFileList.txt")
-    print("DEBUG: Input file list: {}".format(testfilelist))
+    print(("DEBUG: Input file list: {}".format(testfilelist)))
     if len(testfilelist) == 0:
         print("ERROR: No input files found. Exiting.")
         exit(1)
@@ -73,7 +73,7 @@ def main():
         cfgFile = "Input_2022.yml"
         jsonFileName = "golden_Json/Cert_Collisions2022_355100_362760_Golden.json"
         sfFileName = "DeepCSV_102XSF_V2.csv" # FIXME: Update for year 2022
-        modulesToRun.extend([muonScaleRes2018()]) # FIXME: Update for year 2022
+        #modulesToRun.extend([lambda: muonScaleResProducer('','', 2022)]) # FIXME: Update for year 2022
     if "UL18" in first_file or "UL2018" in first_file:
         """UL2018 for identification of 2018 UL data and UL18 for identification of 2018 UL MC
         """
@@ -97,10 +97,10 @@ def main():
     H4LCppModule = lambda: HZZAnalysisCppProducer(year,cfgFile, isMC, isFSR)
     modulesToRun.extend([H4LCppModule()])
 
-    print("Input json file: {}".format(jsonFileName))
-    print("Input cfg file: {}".format(cfgFile))
-    print("isMC: {}".format(isMC))
-    print("isFSR: {}".format(isFSR))
+    print(("Input json file: {}".format(jsonFileName)))
+    print(("Input cfg file: {}".format(cfgFile)))
+    print(("isMC: {}".format(isMC)))
+    print(("isFSR: {}".format(isFSR)))
 
     if isMC:
         if (not args.NOsyst):

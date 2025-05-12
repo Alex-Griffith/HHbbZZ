@@ -17,11 +17,11 @@ campaign_to_run = "v7_2018_campaign"
 
 defaultOldCampaign = "v6"
 defaultNewCampaign = "v7"
-print "="*51
+print("="*51)
 CommandToRun = 'cp input_data_Files/sample_list_'+campaign_to_run.replace(defaultNewCampaign,defaultOldCampaign)+'.dat  samples.dat'
-print CommandToRun
+print(CommandToRun)
 os.system(CommandToRun)
-print "="*51
+print("="*51)
 with open('samples.dat') as in_file:
   count = 0
   outjdl_file = open("sample_list_"+campaign_to_run+".dat","w")
@@ -32,25 +32,25 @@ with open('samples.dat') as in_file:
        continue
      #if count > 27: break
      count = count +1
-     print "="*51,"\n"
-     print "==>  Sample : ",count
-     print "==> line : ",lines
+     print("="*51,"\n")
+     print("==>  Sample : ",count)
+     print("==> line : ",lines)
      sample_name = lines.split('/')[1]
      campaign = lines.split('/')[2]
      tier = lines.split('/')[3]
      #campaign = lines.split('/')[2].split('-')[0]
-     print "==> DAS = ",lines
-     print "==> sample_name = ",sample_name
-     print "==> campaign = ",campaign
-     print "==> campaign = ",tier
+     print("==> DAS = ",lines)
+     print("==> sample_name = ",sample_name)
+     print("==> campaign = ",campaign)
+     print("==> campaign = ",tier)
      if sample_name.find("SingleMuon") != -1 or sample_name.find("EGamma") != -1 or sample_name.find("SingleElectron") !=-1 or sample_name.find("DoubleEG") != -1 or sample_name.find("DoubleMuon") != -1 or sample_name.find("MuonEG") != -1:
        v6_ntuples = "/"+sample_name+"/"+year_campaign_dict[campaign_to_run][1]+"/"+tier
      else:
        v6_ntuples = "/"+sample_name+"/"+year_campaign_dict[campaign_to_run][0]+"/"+tier
      #output = os.popen('dasgoclient --query="dataset='+lines.strip()+'"').read()
-     print 'dasgoclient --query="dataset='+v6_ntuples.strip()+'"'
+     print('dasgoclient --query="dataset='+v6_ntuples.strip()+'"')
      output = os.popen('dasgoclient --query="dataset='+v6_ntuples.strip()+'"').read()
-     print "output : ",output,"\n",type(output)," : ",len(output)
+     print("output : ",output,"\n",type(output)," : ",len(output))
      if len(output.strip()) == 0:
         outjdl_file.write("# NOT FOUND: "+v6_ntuples.strip()+"\n")
      else:

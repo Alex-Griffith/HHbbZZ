@@ -10,10 +10,10 @@ ROOT.PyConfig.IgnoreCommandLineOptions = True
 class HZZAnalysisCppProducer(Module):
     def __init__(self,year,cfgFile,isMC,isFSR):
         base = "$CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim"
-        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/slc7_amd64_gcc700/libJHUGenMELAMELA.so" % base)
-        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/slc7_amd64_gcc700/libjhugenmela.so" % base)
-        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/slc7_amd64_gcc700/libmcfm_707.so" % base)
-        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/slc7_amd64_gcc700/libcollier.so" % base)
+        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/el9_amd64_gcc12/libJHUGenMELAMELA.so" % base)
+        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/el9_amd64_gcc12/libjhugenmela.so" % base)
+        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/el9_amd64_gcc12/libmcfm_710.so" % base)
+        ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/el9_amd64_gcc12/libcollier.so" % base)
         if "/GenAnalysis_cc.so" not in ROOT.gSystem.GetLibraries():
             print("Load GenAnalysis C++ module")
             base = "$CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim"
@@ -40,7 +40,7 @@ class HZZAnalysisCppProducer(Module):
         self.isMC = isMC
         self.genworker = ROOT.GenAnalysis()
         with open(cfgFile, 'r') as ymlfile:
-          cfg = yaml.load(ymlfile)
+          cfg = yaml.full_load(ymlfile)
           self.worker = ROOT.H4LTools(self.year,self.isMC)
           self.worker.InitializeElecut(cfg['Electron']['pTcut'],cfg['Electron']['Etacut'],cfg['Electron']['Sip3dcut'],cfg['Electron']['Loosedxycut'],cfg['Electron']['Loosedzcut'],
                                        cfg['Electron']['Isocut'],cfg['Electron']['BDTWP']['LowEta']['LowPT'],cfg['Electron']['BDTWP']['MedEta']['LowPT'],cfg['Electron']['BDTWP']['HighEta']['LowPT'],
@@ -67,36 +67,36 @@ class HZZAnalysisCppProducer(Module):
         pass
 
     def endJob(self):
-        print("PassTrig: "+str(self.passtrigEvts)+" Events")
-        print("Pass4eCut: "+str(self.worker.cut4e)+" Events")
-        print("Pass4eGhostRemoval: "+str(self.worker.cutghost4e)+" Events")
-        print("Pass4eLepPtCut: "+str(self.worker.cutLepPt4e)+" Events")
-        print("Pass4eQCDSupress: "+str(self.worker.cutQCD4e)+" Events")
-        print("PassmZ1mZ2Cut_4e: "+str(self.worker.cutZZ4e)+" Events")
-        print("Passm4l_105_160_Cut_4e: "+str(self.worker.cutm4l4e)+" Events")
-        print("Pass4muCut: "+str(self.worker.cut4mu)+" Events")
-        print("Pass4muGhostRemoval: "+str(self.worker.cutghost4mu)+" Events")
-        print("Pass4muLepPtCut: "+str(self.worker.cutLepPt4mu)+" Events")
-        print("Pass4muQCDSupress: "+str(self.worker.cutQCD4mu)+" Events")
-        print("PassmZ1mZ2Cut_4mu: "+str(self.worker.cutZZ4mu)+" Events")
-        print("Passm4l_105_160_Cut_4mu: "+str(self.worker.cutm4l4mu)+" Events")
-        print("Pass2e2muCut: "+str(self.worker.cut2e2mu)+" Events")
-        print("Pass2e2muGhostRemoval: "+str(self.worker.cutghost2e2mu)+" Events")
-        print("Pass2e2muLepPtCut: "+str(self.worker.cutLepPt2e2mu)+" Events")
-        print("Pass2e2muQCDSupress: "+str(self.worker.cutQCD2e2mu)+" Events")
-        print("PassmZ1mZ2Cut_2e2mu: "+str(self.worker.cutZZ2e2mu)+" Events")
-        print("Passm4l_105_160_Cut_2e2mu: "+str(self.worker.cutm4l2e2mu)+" Events")
-        print("PassZZSelection: "+str(self.passZZEvts)+" Events")
+        print(("PassTrig: "+str(self.passtrigEvts)+" Events"))
+        print(("Pass4eCut: "+str(self.worker.cut4e)+" Events"))
+        print(("Pass4eGhostRemoval: "+str(self.worker.cutghost4e)+" Events"))
+        print(("Pass4eLepPtCut: "+str(self.worker.cutLepPt4e)+" Events"))
+        print(("Pass4eQCDSupress: "+str(self.worker.cutQCD4e)+" Events"))
+        print(("PassmZ1mZ2Cut_4e: "+str(self.worker.cutZZ4e)+" Events"))
+        print(("Passm4l_105_160_Cut_4e: "+str(self.worker.cutm4l4e)+" Events"))
+        print(("Pass4muCut: "+str(self.worker.cut4mu)+" Events"))
+        print(("Pass4muGhostRemoval: "+str(self.worker.cutghost4mu)+" Events"))
+        print(("Pass4muLepPtCut: "+str(self.worker.cutLepPt4mu)+" Events"))
+        print(("Pass4muQCDSupress: "+str(self.worker.cutQCD4mu)+" Events"))
+        print(("PassmZ1mZ2Cut_4mu: "+str(self.worker.cutZZ4mu)+" Events"))
+        print(("Passm4l_105_160_Cut_4mu: "+str(self.worker.cutm4l4mu)+" Events"))
+        print(("Pass2e2muCut: "+str(self.worker.cut2e2mu)+" Events"))
+        print(("Pass2e2muGhostRemoval: "+str(self.worker.cutghost2e2mu)+" Events"))
+        print(("Pass2e2muLepPtCut: "+str(self.worker.cutLepPt2e2mu)+" Events"))
+        print(("Pass2e2muQCDSupress: "+str(self.worker.cutQCD2e2mu)+" Events"))
+        print(("PassmZ1mZ2Cut_2e2mu: "+str(self.worker.cutZZ2e2mu)+" Events"))
+        print(("Passm4l_105_160_Cut_2e2mu: "+str(self.worker.cutm4l2e2mu)+" Events"))
+        print(("PassZZSelection: "+str(self.passZZEvts)+" Events"))
         if self.isMC:
-            print("PassGEN4eCut: "+str(self.genworker.nGEN4e)+" Events")
-            print("PassGEN4eZ1Cut: "+str(self.genworker.nGEN4epassZ1)+" Events")
-            print("PassGEN4efidCut: "+str(self.genworker.nGEN4epassFid)+" Events")
-            print("PassGEN2e2muCut: "+str(self.genworker.nGEN2e2mu)+" Events")
-            print("PassGEN2e2muZ1Cut: "+str(self.genworker.nGEN2e2mupassZ1)+" Events")
-            print("PassGEN2e2mufidCut: "+str(self.genworker.nGEN2e2mupassFid)+" Events")
-            print("PassGEN4muCut: "+str(self.genworker.nGEN4mu)+" Events")
-            print("PassGEN4muZ1Cut: "+str(self.genworker.nGEN4mupassZ1)+" Events")
-            print("PassGEN4mufidCut: "+str(self.genworker.nGEN4mupassFid)+" Events")
+            print(("PassGEN4eCut: "+str(self.genworker.nGEN4e)+" Events"))
+            print(("PassGEN4eZ1Cut: "+str(self.genworker.nGEN4epassZ1)+" Events"))
+            print(("PassGEN4efidCut: "+str(self.genworker.nGEN4epassFid)+" Events"))
+            print(("PassGEN2e2muCut: "+str(self.genworker.nGEN2e2mu)+" Events"))
+            print(("PassGEN2e2muZ1Cut: "+str(self.genworker.nGEN2e2mupassZ1)+" Events"))
+            print(("PassGEN2e2mufidCut: "+str(self.genworker.nGEN2e2mupassFid)+" Events"))
+            print(("PassGEN4muCut: "+str(self.genworker.nGEN4mu)+" Events"))
+            print(("PassGEN4muZ1Cut: "+str(self.genworker.nGEN4mupassZ1)+" Events"))
+            print(("PassGEN4mufidCut: "+str(self.genworker.nGEN4mupassFid)+" Events"))
         pass
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
@@ -282,7 +282,7 @@ class HZZAnalysisCppProducer(Module):
             self.worker.SetElectrons(xe.pt, xe.eta, xe.phi, xe.mass, xe.dxy,
                                       xe.dz, xe.sip3d, xe.mvaHZZIso, xe.pdgId, xe.pfRelIso03_all)
         for xm in muons:
-            self.worker.SetMuons(xm.corrected_pt, xm.eta, xm.phi, xm.mass, xm.isGlobal, xm.isTracker,
+            self.worker.SetMuons(xm.pt, xm.eta, xm.phi, xm.mass, xm.isGlobal, xm.isTracker,
                                 xm.dxy, xm.dz, xm.sip3d, xm.ptErr, xm.nTrackerLayers, xm.isPFcand,
                                  xm.pdgId, xm.charge, xm.pfRelIso03_all)
         for xf in fsrPhotons:

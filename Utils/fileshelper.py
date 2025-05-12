@@ -21,7 +21,7 @@ class FileHelper:
             + str(format(CURRENT_DATETIME.second, '02d'))
         )
         self.eos_string = '/eos/uscms'
-        print("==> Time stamp: {}".format(self.dir_name))
+        print(("==> Time stamp: {}".format(self.dir_name)))
 
     def create_log_dir_with_date(self):
         """
@@ -32,7 +32,7 @@ class FileHelper:
         log_dir_name = os.path.join(self.log_path, self.dir_name)
         if not os.path.exists(log_dir_name):
             os.makedirs(log_dir_name)
-        print("==> Created directory for log files: {}".format(log_dir_name))
+        print(("==> Created directory for log files: {}".format(log_dir_name)))
         return log_dir_name
 
     def create_store_area(self, path):
@@ -45,7 +45,7 @@ class FileHelper:
         """
         # Reference:https://cernbox.docs.cern.ch/desktop/other-access-methods/eos_xrootd/
         os.system('eos root://eosuser.cern.ch mkdir -p {path}'.format(path = path))
-        print("==> Created directory at eos path: {path}".format(path = path))
+        print(("==> Created directory at eos path: {path}".format(path = path)))
         # Add a check to see if the directory was created
         print("==> Checking if the directory was created...")
         if self.if_eos:
@@ -83,6 +83,6 @@ class FileHelper:
         os.makedirs(log_dir_name, exist_ok=True)
         self.create_store_area(self.store_area)
         self.create_store_area(store_area_dir_name)
-        print("==> Created directory for log files: {log_dir_name}".format(log_dir_name = log_dir_name))
-        print("==> Created directory at eos path: {store_area_dir_name}".format(store_area_dir_name = store_area_dir_name))
+        print(("==> Created directory for log files: {log_dir_name}".format(log_dir_name = log_dir_name)))
+        print(("==> Created directory at eos path: {store_area_dir_name}".format(store_area_dir_name = store_area_dir_name)))
         return log_dir_name, store_area_dir_name

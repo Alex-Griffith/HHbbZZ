@@ -7,7 +7,7 @@ def PassTrig(event,cfgFile):
     
     PassTrig = False
     with open(cfgFile, 'r') as ymlfile:
-        cfg = yaml.load(ymlfile)
+        cfg = yaml.full_load(ymlfile)
         TriggerList = []
         for TriggerName in cfg['Triggers']:
             TriggerList.append(eval(TriggerName))
