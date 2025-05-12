@@ -1,36 +1,69 @@
 # NanoAOD Skim
-nanoAOD skiming code for H->ZZ->2l2Q studies.
+This is the nanoAOD skiming code for HH->bbZZ->bb4l analysis of Run 3 data.
 
-## Code setup
+
+To install a complete CMSSW 13X area (including this package)
+------------------------------
+Used for analysis of 2022 data and beyond
+
+Please use **CMSSW_13_3_3**. 
+
+Download and execute the setup script:
+```
+cmsrel CMSSW_13_3_3
+cd CMSSW_13_3_3/src
+cmsenv
+wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HZZ_Analysis_Run3/checkout.csh
+chmod u+x ${TMPDIR}/checkout.csh
+${TMPDIR}/checkout.csh
+scramv1 b -j 4
+```
+
+
+
+## Alternative Code setup
+
+#cp PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/btag/*.csv PhysicsTools/NanoAODTools/data/btagSF/.
+scram b -j12
+
+cd $CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
+#MELA
+git clone https://github.com/JHUGen/JHUGenMELA.git JHUGenMELA
+(cd JHUGenMELA; git checkout -b from-v242 v2.4.2; ./setup.sh)
+
+
+
 
 1. Step: 1: Get CMSSW release
 
    ```bash
-   cmsrel CMSSW_10_6_30
-   cd CMSSW_10_6_30/src
+   cmsrel CMSSW_13_3_3
+   cd CMSSW_13_3_3/src
    cmsenv
    ```
 
 2. Step: 2: Get  official nanoAODTools
 
    ```bash
+   set -e
+   git cms-init
+
    git clone git@github.com:cms-nanoAOD/nanoAOD-tools.git PhysicsTools/NanoAODTools
    cd PhysicsTools/NanoAODTools
-   git checkout 65359982275c476834ad4b37363d658166881f12 # Updated to commit on 16 June 2023 in official nanoAOD-tools
    ```
 
 3. Step: 3: Get our analysis repository
 
    ```bash
    cd $CMSSW_BASE/src
-   git clone git@github.com:ram1123/nanoAOD_skim.git PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
+   git clone --branch HZZ_Analysis_Run3 https://github.com/lwang046/HHbbZZ.git PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
    cd PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
-   git checkout HZZ_Analysis_Run3
    cd -
    cmsenv
+
    # patch PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/nanoAOD_tools.patch
    cp PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/btag/*.csv PhysicsTools/NanoAODTools/data/btagSF/.
-   scram b
+   scram b -j12
    voms-proxy-init --voms cms --valid 168:00
    ```
 
@@ -44,17 +77,15 @@ nanoAOD skiming code for H->ZZ->2l2Q studies.
 
    ```bash
    cd $CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
-   git clone -b v2.3.5 https://github.com/JHUGen/JHUGenMELA
-   sh JHUGenMELA/MELA/setup.sh -j 8
-   cd JHUGenMELA/MELA
-   make
+   git clone https://github.com/JHUGen/JHUGenMELA.git JHUGenMELA
+   (cd JHUGenMELA; git checkout -b from-v242 v2.4.2; ./setup.sh)
    ```
 
 4. Step: 4: interactive running
 
    ```bash
    cd $CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
-   python post_proc.py
+   python post_proc.py -i <dataset>
    ```
 
 5. batch job submission.
