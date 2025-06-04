@@ -104,7 +104,7 @@ scramv1 b -j 4
 1. [condor_setup_lxplus.py](condor_setup_lxplus.py): This script can be used to setup the condor jobs. It takes the input text file (present inside directory [input_data_Files](input_data_Files)) from which you need to take input NanoAOD DAS names. Also, updated the output EOS path. Then do the following:
 
    ```bash
-   python condor_setup_lxplus.py --input-file sample_list_v12_2022.dat
+   python3 condor_setup_lxplus.py --input_file sample_list_v12_2022.dat
    ```
    This will create the condor job files and the condor log files.
 
