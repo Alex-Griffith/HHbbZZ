@@ -39,6 +39,7 @@ scramv1 b -j 4
    git cms-init
 
    git clone git@github.com:cms-nanoAOD/nanoAOD-tools.git PhysicsTools/NanoAODTools
+   git clone git@github.com:cms-cat/nanoAOD-tools-modules.git PhysicsTools/NATModules
    cd PhysicsTools/NanoAODTools
    ```
 
