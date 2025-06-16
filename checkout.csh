@@ -18,7 +18,7 @@ cd PhysicsTools/NanoAODTools
 
 
 cd $CMSSW_BASE/src
-git clone --branch HZZ_Analysis_Run3 https://github.com/lwang046/HHbbZZ.git PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
+git clone --branch HHbbZZ_Analysis_Run3 https://github.com/lwang046/HHbbZZ.git PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
 cd PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
 cd -
 cmsenv

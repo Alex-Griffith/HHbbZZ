@@ -9,6 +9,9 @@ from PhysicsTools.NanoAODTools.postprocessing.modules.jme.jetmetHelperRun2 impor
 from PhysicsTools.NanoAODTools.postprocessing.modules.btv.btagSFProducer import btagSFProducer
 from PhysicsTools.NanoAODTools.postprocessing.modules.common.puWeightProducer import *
 
+from PhysicsTools.NATModules.modules.muonScaleRes import muonScaleRes as muonScaleRes_natlib
+from PhysicsTools.NATModules.modules.puWeightProducer import puWeightProducer as puWeightProducer_natlib
+
 # Custom module imports
 from H4Lmodule import *
 from H4LCppModule import *
@@ -39,6 +42,7 @@ def main():
     isMC = True
     isFSR = False
     year = None
+    data_tag = None
     cfgFile = None
     jsonFileName = None
     sfFileName = None
@@ -70,10 +74,30 @@ def main():
         """Summer22 and Run2022 for identification of 2022 MC and data respectiverly
         """
         year = 2022
+        if "22EE" in first_file : data_tag = "pre_EE"
         cfgFile = "Input_2022.yml"
         jsonFileName = "golden_Json/Cert_Collisions2022_355100_362760_Golden.json"
         sfFileName = "DeepCSV_102XSF_V2.csv" # FIXME: Update for year 2022
-        #modulesToRun.extend([lambda: muonScaleResProducer('','', 2022)]) # FIXME: Update for year 2022
+        # json here: https://gitlab.cern.ch/cms-muonPOG/muonscarekit, from ref: https://muon-wiki.docs.cern.ch/code/ptcorr/
+        if "pre_EE" in data_tag :
+            modulesToRun.append(muonScaleRes_natlib("%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/MuonScale/%s" % (os.environ['CMSSW_BASE'], "2022_Summer22EE.json"), isMC, overwritePt))
+        else :
+            modulesToRun.append(muonScaleRes_natlib("%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/MuonScale/%s" % (os.environ['CMSSW_BASE'], "2022_Summer22.json"), isMC, overwritePt))
+
+    if "Summer23" in first_file or "Run2023" in first_file:
+        """Summer23 and Run2023 for identification of 2022 M3 and data respectiverly
+        """
+        year = 2023
+        if "23BPix" in first_file : data_tag = "pre_BPix"
+        cfgFile = "Input_2023.yml"
+        jsonFileName = "golden_Json/Cert_Collisions2022_355100_362760_Golden.json"
+        sfFileName = "DeepCSV_102XSF_V2.csv" # FIXME: Update for year 2022
+        if "pre_BPix" in data_tag :
+            modulesToRun.append(muonScaleRes_natlib("%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/MuonScale/%s" % (os.environ['CMSSW_BASE'], "2023_Summer23BPix.json"), isMC, overwritePt))
+        else :
+            modulesToRun.append(muonScaleRes_natlib("%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/MuonScale/%s" % (os.environ['CMSSW_BASE'], "2023_Summer23.json"), isMC, overwritePt))
+
+
     if "UL18" in first_file or "UL2018" in first_file:
         """UL2018 for identification of 2018 UL data and UL18 for identification of 2018 UL MC
         """
@@ -113,10 +137,29 @@ def main():
             #modulesToRun.extend([jetmetCorrector(), fatJetCorrector()])#, puidSF()
             # # modulesToRun.extend([jetmetCorrector(), fatJetCorrector(), btagSF(), puidSF()])
 
-        # FIXME: No PU weight for 2022
+        # PU reweight
         if year == 2018: modulesToRun.extend([puAutoWeight_2018()])
         if year == 2017: modulesToRun.extend([puAutoWeight_2017()])
         if year == 2016: modulesToRun.extend([puAutoWeight_2016()])
+
+        if year == 2022
+            if "pre_EE" in data_tag :
+                json = "%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/puWeights/puWeights_2022_Summer22.json.gz" % os.environ['CMSSW_BASE']
+                key = "Collisions2022_355100_357900_eraBCD_GoldenJson"
+            else :
+                json = "%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/puWeights/puWeights_2022_Summer22EE.json.gz" % os.environ['CMSSW_BASE']
+                key = "Collisions2022_359022_362760_eraEFG_GoldenJson"
+            modulesToRun.insert(0, puWeightProducer_natlib(json, key))
+
+        if year == 2023 :
+            if "pre_BPix" in data_tag :
+                json = "%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/puWeights/puWeights_2023_Summer23preBPix.json.gz" % os.environ['CMSSW_BASE']
+                key = "Collisions2023_366403_369802_eraBC_GoldenJson"
+            else :
+                json = "%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/puWeights/puWeights_2023_Summer23postBPix.json.gz" % os.environ['CMSSW_BASE']
+                key = "Collisions2023_369803_370790_eraD_GoldenJson"
+            modulesToRun.insert(0, puWeightProducer_natlib(json, key))
+
 
         # INFO: Keep the `fwkJobReport=False` to trigger `haddnano.py`
         #            otherwise the output file will have larger size then expected. Reference: https://github.com/cms-nanoAOD/nanoAOD-tools/issues/249
