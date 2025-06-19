@@ -24,6 +24,7 @@ def parse_arguments():
     parser.add_argument("-n", "--entriesToRun", default=100, type=int, help="Set  to 0 if need to run over all entries else put number of entries to run")
     parser.add_argument("-d", "--DownloadFileToLocalThenRun", default=True, type=bool, help="Download file to local then run")
     parser.add_argument("--NOsyst", default=False, action="store_true", help="Do not run systematics")
+    parser.add_argument("--overwritePt", default=True, type=bool, help="overwright muon pt from muon scale and res corrections")
     return parser.parse_args()
 
 
@@ -42,10 +43,11 @@ def main():
     isMC = True
     isFSR = False
     year = None
-    data_tag = None
+    data_tag = ""
     cfgFile = None
     jsonFileName = None
     sfFileName = None
+    overwritePt = args.overwritePt
 
     entriesToRun = int(args.entriesToRun)
     DownloadFileToLocalThenRun = args.DownloadFileToLocalThenRun
@@ -70,6 +72,8 @@ def main():
     first_file = testfilelist[0]
     isMC = "/data/" not in first_file
 
+    print(first_file, "\n", isMC)
+
     if "Summer22" in first_file or "Run2022" in first_file:
         """Summer22 and Run2022 for identification of 2022 MC and data respectiverly
         """
@@ -84,7 +88,7 @@ def main():
         else :
             modulesToRun.append(muonScaleRes_natlib("%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/MuonScale/%s" % (os.environ['CMSSW_BASE'], "2022_Summer22.json"), isMC, overwritePt))
 
-    if "Summer23" in first_file or "Run2023" in first_file:
+    elif "Summer23" in first_file or "Run2023" in first_file:
         """Summer23 and Run2023 for identification of 2022 M3 and data respectiverly
         """
         year = 2023
@@ -98,7 +102,7 @@ def main():
             modulesToRun.append(muonScaleRes_natlib("%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/MuonScale/%s" % (os.environ['CMSSW_BASE'], "2023_Summer23.json"), isMC, overwritePt))
 
 
-    if "UL18" in first_file or "UL2018" in first_file:
+    elif "UL18" in first_file or "UL2018" in first_file:
         """UL2018 for identification of 2018 UL data and UL18 for identification of 2018 UL MC
         """
         year = 2018
@@ -106,13 +110,13 @@ def main():
         jsonFileName = "golden_Json/Cert_314472-325175_13TeV_Legacy2018_Collisions18_JSON.txt"
         sfFileName = "DeepCSV_102XSF_V2.csv"
         modulesToRun.extend([muonScaleRes2018()])
-    if "UL17" in first_file or "UL2017" in first_file:
+    elif "UL17" in first_file or "UL2017" in first_file:
         year = 2017
         cfgFile = "Input_2017.yml"
         jsonFileName="golden_Json/Cert_294927-306462_13TeV_UL2017_Collisions17_GoldenJSON.txt"
         sfFileName = "DeepCSV_102XSF_V2.csv"
         modulesToRun.extend([muonScaleRes2017()])
-    if "UL16" in first_file or "UL2016" in first_file:
+    elif "UL16" in first_file or "UL2016" in first_file:
         year = 2016
         jsonFileName = "golden_Json/Cert_271036-284044_13TeV_Legacy2016_Collisions16_JSON.txt"
         sfFileName = "DeepCSV_102XSF_V2.csv"
@@ -142,7 +146,7 @@ def main():
         if year == 2017: modulesToRun.extend([puAutoWeight_2017()])
         if year == 2016: modulesToRun.extend([puAutoWeight_2016()])
 
-        if year == 2022
+        if year == 2022 :
             if "pre_EE" in data_tag :
                 json = "%s/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/puWeights/puWeights_2022_Summer22.json.gz" % os.environ['CMSSW_BASE']
                 key = "Collisions2022_355100_357900_eraBCD_GoldenJson"

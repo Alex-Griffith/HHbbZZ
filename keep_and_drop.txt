@@ -105,4 +105,4 @@ keep PV*
 #keep Gen*
 keep genWeight
 #keep Jet_*
-#keep Muon*
+keep Muon*
