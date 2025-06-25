@@ -613,6 +613,9 @@ bool H4LTools::ZZSelection(){
     if(Zsize<2){
         return foundZZCandidate;
     }
+    if(jetidx.size()<JetNcut){
+        return foundZZCandidate;
+    }
     
     //Find ZZ candidate
     std::vector<int> Z1CanIndex;
@@ -792,58 +795,59 @@ bool H4LTools::ZZSelection(){
     unsigned int jet1index, jet2index;
     jet1index = 99;
     jet2index = 99;
-    if(jetidx.size()>0)
+
+    if(jetidx.size()==2)
     {
-        if(jetidx.size()==1)
+        jet1index = jetidx[0];
+        jet2index = jetidx[1];
+        if(Jet_pt[jetidx[1]]>Jet_pt[jetidx[0]])
         {
-            jet1index = jetidx[0];
+            jet1index = jetidx[1];
+            jet2index = jetidx[0];
         }
-        if(jetidx.size()==2)
+    }
+    if(jetidx.size()>2)
+    {
+        jet1index = jetidx[0];
+        jet2index = jetidx[1];
+        if(Jet_pt[jetidx[1]]>Jet_pt[jetidx[0]])
         {
-            jet1index = jetidx[0];
-            jet2index = jetidx[1];
-            if(Jet_pt[jetidx[1]]>Jet_pt[jetidx[0]])
-            {
-                jet1index = jetidx[1];
-                jet2index = jetidx[0];
-            }
+            jet1index = jetidx[1];
+            jet2index = jetidx[0];
         }
-        if(jetidx.size()>2)
-        {
-            jet1index = jetidx[0];
-            jet2index = jetidx[1];
-            if(Jet_pt[jetidx[1]]>Jet_pt[jetidx[0]])
-            {
-                jet1index = jetidx[1];
-                jet2index = jetidx[0];
+        for (unsigned int pj=2;pj<jetidx.size();pj++){
+            if((Jet_pt[jetidx[pj]]>Jet_pt[jet1index])&&(Jet_pt[jetidx[pj]]>Jet_pt[jet2index])){
+                jet2index = jet1index;
+                jet1index = jetidx[pj];
             }
-            for (unsigned int pj=2;pj<jetidx.size();pj++){
-                if((Jet_pt[jetidx[pj]]>jet1index)&&(Jet_pt[jetidx[pj]]>jet2index)){
-                    jet1index = jetidx[pj];
-                }
-                if(Jet_pt[jetidx[pj]]>jet2index){
-                    jet2index = jetidx[pj];
-                }
+            else if((Jet_pt[jetidx[pj]]>Jet_pt[jet2index])&&(Jet_pt[jetidx[pj]]<Jet_pt[jet1index])){
+                jet2index = jetidx[pj];
             }
         }
     }
     TLorentzVector Jet1,Jet2;
     SimpleParticleCollection_t associated;
-    if(jetidx.size()>0){
+    if(jetidx.size()>1){
         Jet1.SetPtEtaPhiM(Jet_pt[jet1index],Jet_eta[jet1index],Jet_phi[jet1index],Jet_mass[jet1index]);
         associated.push_back(SimpleParticle_t(0, Jet1));
         pTj1 = Jet1.Pt();
         etaj1 = Jet1.Eta();
         phij1 = Jet1.Phi();
         mj1 = Jet1.M();
-        if(jetidx.size()>1){
-           Jet2.SetPtEtaPhiM(Jet_pt[jet2index],Jet_eta[jet2index],Jet_phi[jet2index],Jet_mass[jet2index]);
-           associated.push_back(SimpleParticle_t(0, Jet2));
-           pTj2 = Jet2.Pt();
-           etaj2 = Jet2.Eta();
-           phij2 = Jet2.Phi();
-           mj2 = Jet2.M();
-        }
+        btagger1_DJ = Jet_btagDeepFlavB[jet1index];
+        btagger1_PN = Jet_btagPNetB[jet1index];
+        btagger1_RPT = Jet_btagRobustParTAK4B[jet1index];
+
+        Jet2.SetPtEtaPhiM(Jet_pt[jet2index],Jet_eta[jet2index],Jet_phi[jet2index],Jet_mass[jet2index]);
+        associated.push_back(SimpleParticle_t(0, Jet2));
+        pTj2 = Jet2.Pt();
+        etaj2 = Jet2.Eta();
+        phij2 = Jet2.Phi();
+        mj2 = Jet2.M();
+        btagger2_DJ = Jet_btagDeepFlavB[jet2index];
+        btagger2_PN = Jet_btagPNetB[jet2index];
+        btagger2_RPT = Jet_btagRobustParTAK4B[jet2index];
+        invjj = (Jet1+Jet2).M();
     }
     
     
