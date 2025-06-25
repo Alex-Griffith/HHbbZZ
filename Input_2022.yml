@@ -98,8 +98,10 @@ Jet:
   pTcut:
     30
   Etacut:
-    4.7
-
+    2.4
+  Ncut:
+    2
+    
 inputdataNPV:
   "data/pileupHistogram-Cert_Collisions2022_355100_362760_GoldenJson-13p6TeV-69200ub-99bins.root"
 inputdataNPVup:

@@ -51,7 +51,7 @@ keep *Weight*
 # keep nTau
 # keep Tau*
 # keep HTXS*
-# keep btag*
+keep btag*
 # keep CaloMET*
 # keep ChsMET*
 # keep nCorrT1METJet
@@ -105,4 +105,5 @@ keep PV*
 #keep Gen*
 keep genWeight
 #keep Jet_*
-#keep Muon*
+keep Muon*
+keep invjj
