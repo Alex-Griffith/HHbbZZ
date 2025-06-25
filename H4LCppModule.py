@@ -48,7 +48,7 @@ class HZZAnalysisCppProducer(Module):
           self.worker.InitializeMucut(cfg['Muon']['pTcut'],cfg['Muon']['Etacut'],cfg['Muon']['Sip3dcut'],cfg['Muon']['Loosedxycut'],cfg['Muon']['Loosedzcut'],cfg['Muon']['Isocut'],
                                        cfg['Muon']['Tightdxycut'],cfg['Muon']['Tightdzcut'],cfg['Muon']['TightTrackerLayercut'],cfg['Muon']['TightpTErrorcut'],cfg['Muon']['HighPtBound'])
           self.worker.InitializeFsrPhotonCut(cfg['FsrPhoton']['pTcut'],cfg['FsrPhoton']['Etacut'],cfg['FsrPhoton']['Isocut'],cfg['FsrPhoton']['dRlcut'],cfg['FsrPhoton']['dRlOverPtcut'])
-          self.worker.InitializeJetcut(cfg['Jet']['pTcut'],cfg['Jet']['Etacut'])
+          self.worker.InitializeJetcut(cfg['Jet']['pTcut'],cfg['Jet']['Etacut'],cfg['Jet']['Ncut'])
           self.worker.InitializeEvtCut(cfg['MZ1cut'],cfg['MZZcut'],cfg['Higgscut']['down'],cfg['Higgscut']['up'],cfg['Zmass'],cfg['MZcut']['down'],cfg['MZcut']['up'])
           self.PUweightfile = cfg["outputdataNPV"]
           self.PUweighthisto = cfg["PUweightHistoName"]
@@ -155,6 +155,13 @@ class HZZAnalysisCppProducer(Module):
         self.out.branch("etaj2",  "F")
         self.out.branch("phij2",  "F")
         self.out.branch("mj2",  "F")
+        self.out.branch("btagger1_DJ", "F")
+        self.out.branch("btagger1_PN", "F")
+        self.out.branch("btagger1_RPT", "F")
+        self.out.branch("btagger2_DJ", "F")
+        self.out.branch("btagger2_PN", "F")
+        self.out.branch("btagger2_RPT", "F")
+        self.out.branch("invjj", "F")
         self.out.branch("EvtNum",  "I")
         self.out.branch("Weight",  "F")
         self.out.branch("pileupWeight",  "F")
@@ -254,6 +261,13 @@ class HZZAnalysisCppProducer(Module):
         phi4l = -99
         mass4l = 0
         rapidity4l = -99
+        btagger1_DJ = -99
+        btagger1_PN = -99
+        btagger1_RPT = -99
+        btagger2_DJ = -99
+        btagger2_PN = -99
+        btagger2_RPT = -99
+        invjj = -99
         passedTrig = PassTrig(event, self.cfgFile)
         if (passedTrig==True):
             self.passtrigEvts += 1
@@ -288,7 +302,7 @@ class HZZAnalysisCppProducer(Module):
         for xf in fsrPhotons:
             self.worker.SetFsrPhotons(xf.dROverEt2,xf.eta,xf.phi,xf.pt,xf.relIso03,xf.electronIdx,xf.muonIdx)
         for xj in jets:
-            self.worker.SetJets(xj.pt,xj.eta,xj.phi,xj.mass,xj.jetId, 0.8, 7)
+            self.worker.SetJets(xj.pt,xj.eta,xj.phi,xj.mass,xj.jetId,xj.btagDeepFlavB,xj.btagPNetB,xj.btagRobustParTAK4B, 0.8, 7)
         self.worker.BatchFsrRecovery_Run3()
         
         self.worker.LeptonSelection()
@@ -378,6 +392,7 @@ class HZZAnalysisCppProducer(Module):
         if (foundZZCandidate):
             self.passZZEvts += 1
         if (foundZZCandidate |passedFiducialSelection ):
+        #if (foundZZCandidate):
             EvtNum += 1
             keepIt = True
         if self.worker.RecoFourMuEvent: finalState = 1
@@ -423,6 +438,13 @@ class HZZAnalysisCppProducer(Module):
         etaj2 = self.worker.etaj2
         phij2 = self.worker.phij2
         mj2 = self.worker.mj2
+        btagger1_DJ = self.worker.btagger1_DJ
+        btagger1_PN = self.worker.btagger1_PN
+        btagger1_RPT = self.worker.btagger1_RPT
+        btagger2_DJ = self.worker.btagger2_DJ
+        btagger2_PN = self.worker.btagger2_PN
+        btagger2_RPT = self.worker.btagger2_RPT
+        invjj = self.worker.invjj
 
         if pTL2>pTL1:
             pTL1, pTl2 = pTL2, pTL1
@@ -515,6 +537,13 @@ class HZZAnalysisCppProducer(Module):
         self.out.fillBranch("pTj2",pTj2)
         self.out.fillBranch("etaj2",etaj2)
         self.out.fillBranch("phij2",phij2)
+        self.out.fillBranch("btagger1_DJ",btagger1_DJ)
+        self.out.fillBranch("btagger1_PN",btagger1_PN)
+        self.out.fillBranch("btagger1_RPT",btagger1_RPT)
+        self.out.fillBranch("btagger2_DJ",btagger2_DJ)
+        self.out.fillBranch("btagger2_PN",btagger2_PN)
+        self.out.fillBranch("btagger2_RPT",btagger2_RPT)
+        self.out.fillBranch("invjj",invjj)
         self.out.fillBranch("pileupWeight",pileupWeight)
         self.out.fillBranch("dataMCWeight_new",dataMCWeight_new)
         self.out.fillBranch("prefiringWeight",prefiringWeight)
