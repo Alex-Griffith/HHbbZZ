@@ -4,11 +4,14 @@ import ROOT
 import yaml
 import os
 from Helper import *
+# ADDED: Import correctionlib for the new PU method
+import correctionlib
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 
 class HZZAnalysisCppProducer(Module):
-    def __init__(self,year,cfgFile,isMC,isFSR):
+    # MODIFIED: Add pu_json and pu_name to the constructor with default None
+    def __init__(self,year,cfgFile,isMC,isFSR, pu_json=None, pu_name=None):
         base = "$CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim"
         ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/el9_amd64_gcc12/libJHUGenMELAMELA.so" % base)
         ROOT.gSystem.Load("%s/JHUGenMELA/MELA/data/el9_amd64_gcc12/libjhugenmela.so" % base)
@@ -50,14 +53,33 @@ class HZZAnalysisCppProducer(Module):
           self.worker.InitializeFsrPhotonCut(cfg['FsrPhoton']['pTcut'],cfg['FsrPhoton']['Etacut'],cfg['FsrPhoton']['Isocut'],cfg['FsrPhoton']['dRlcut'],cfg['FsrPhoton']['dRlOverPtcut'])
           self.worker.InitializeJetcut(cfg['Jet']['pTcut'],cfg['Jet']['Etacut'],cfg['Jet']['Ncut'])
           self.worker.InitializeEvtCut(cfg['MZ1cut'],cfg['MZZcut'],cfg['Higgscut']['down'],cfg['Higgscut']['up'],cfg['Zmass'],cfg['MZcut']['down'],cfg['MZcut']['up'])
-          self.PUweightfile = cfg["outputdataNPV"]
-          self.PUweighthisto = cfg["PUweightHistoName"]
-        PUinput_file = ROOT.TFile.Open(self.PUweightfile)
-        PUinput_hist = PUinput_file.Get(self.PUweighthisto)
-        self.PUweight_list = []
-        for i in range(1, PUinput_hist.GetNbinsX() + 1):
-            self.PUweight_list.append(PUinput_hist.GetBinContent(i))
-        PUinput_file.Close()
+          
+          # ======================= FINAL SMART PILEUP HANDLER =======================
+          self.pu_evaluator = None # For new method (Run 3)
+          self.PUweight_list = []  # For old method (Run 2)
+
+          # If pu_json is passed from post_proc.py, it's a Run 3 year.
+          if self.isMC and pu_json and pu_name:
+              print(f"INFO: Year is {self.year}, using correctionlib for Pileup from {pu_json}")
+              pu_corr_set = correctionlib.CorrectionSet.from_file(pu_json)
+              self.pu_evaluator = pu_corr_set[pu_name]
+          # Otherwise, if it's MC, it must be a Run 2 year. Use the old ROOT method.
+          elif self.isMC:
+              print(f"INFO: Year is {self.year}, using ROOT histogram for Pileup.")
+              self.PUweightfile = cfg["outputdataNPV"]
+              self.PUweighthisto = cfg["PUweightHistoName"]
+              PUinput_file = ROOT.TFile.Open(self.PUweightfile)
+              if not PUinput_file or PUinput_file.IsZombie():
+                  raise RuntimeError(f"Could not open PU weight file: {self.PUweightfile}")
+              PUinput_hist = PUinput_file.Get(self.PUweighthisto)
+              if not PUinput_hist:
+                  raise RuntimeError(f"Could not find histogram '{self.PUweighthisto}' in file '{self.PUweightfile}'")
+              
+              for i in range(1, PUinput_hist.GetNbinsX() + 1):
+                  self.PUweight_list.append(PUinput_hist.GetBinContent(i))
+              PUinput_file.Close()
+          # ==========================================================================
+
         self.passtrigEvts = 0
         self.passZZEvts = 0
         self.cfgFile = cfgFile
@@ -274,7 +296,17 @@ class HZZAnalysisCppProducer(Module):
         else:
             return keepIt
         if(isMC):
-            pileupWeight = self.PUweight_list[event.Pileup_nPU]
+            # ======================= FINAL SMART PILEUP APPLICATION =======================
+            # If the evaluator was created, use it (Run 3)
+            if self.pu_evaluator:
+                nTrueInt = getattr(event, "Pileup_nTrueInt", 0)
+                pileupWeight = self.pu_evaluator.evaluate(nTrueInt, "nominal")
+            # Otherwise, use the old list (Run 2)
+            elif self.PUweight_list:
+                if event.Pileup_nPU < len(self.PUweight_list):
+                    pileupWeight = self.PUweight_list[event.Pileup_nPU]
+            # ============================================================================
+        
         electrons = Collection(event, "Electron")
         muons = Collection(event, "Muon")
         fsrPhotons = Collection(event, "FsrPhoton")

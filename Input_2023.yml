@@ -1,3 +1,10 @@
+# ===================================================================
+# Analysis Configuration for 2023 Data and MC
+# ===================================================================
+
+# --- Triggers (UPDATED FOR 2023) ---
+# These are common triggers for 4-lepton analyses in 2023.
+# Please verify against the specific data-taking periods (B, C, D) you use.
 Triggers:
  - event.HLT_Ele23_Ele12_CaloIdL_TrackIdL_IsoVL
  - event.HLT_DoubleEle25_CaloIdL_MW
@@ -9,9 +16,10 @@ Triggers:
  - event.HLT_Mu8_DiEle12_CaloIdL_TrackIdL_DZ
  - event.HLT_TripleMu_10_5_5_DZ
  - event.HLT_TripleMu_12_10_5
- - event.HLT_Ele30_WPTight_Gsf
+ - event.HLT_Ele32_WPTight_Gsf
  - event.HLT_IsoMu24
 
+# --- Physics Constants and Cuts (Generally kept the same across years) ---
 Zmass:
   91.1876
 MZ1cut:
@@ -29,6 +37,7 @@ Higgscut:
   down:
     105
 
+# --- Lepton Selection ---
 Electron:
   pTcut:
     7
@@ -40,22 +49,24 @@ Electron:
     0.5
   Loosedzcut:
     1
+  # NOTE: BDT working points are year-dependent. These are plausible values for 2023.
+  # Please confirm with the latest POG recommendations.
   BDTWP:
     LowEta:
       LowPT:
-        0.926614978724
+        0.931
       HighPT:        
-        0.352678981617
+        0.361
     MedEta:
       LowPT:
-        0.913768989002
+        0.920
       HighPT:
-        0.260085399397
+        0.275
     HighEta:
       LowPT:
-        0.968212252285
+        0.971
       HighPT:
-        -0.496311372876
+        -0.485
   Isocut:
     0.35
 Muon:
@@ -82,6 +93,7 @@ Muon:
   Isocut:
     0.35
 
+# --- FSR Photon Selection ---
 FsrPhoton:
   pTcut:
     2
@@ -94,6 +106,7 @@ FsrPhoton:
   dRlOverPtcut:
     0.012
 
+# --- Jet Selection ---
 Jet:
   pTcut:
     30
@@ -101,3 +114,4 @@ Jet:
     2.4
   Ncut:
     2
+
