@@ -45,6 +45,8 @@ class HZZAnalysisCppProducer(Module):
         self.worker = self._make_worker()
         self.views = VIEWS if self.isMC and doSystematics and self.year >= 2022 else VIEWS[:1]
         self.variationWorker = self._make_worker() if len(self.views) > 1 else None
+        self._branchTree = None
+        self._inputBranches = None
 
         self.passtrigEvts = 0
         self.passZZEvts = 0
@@ -131,6 +133,8 @@ class HZZAnalysisCppProducer(Module):
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.initReaders(inputTree)
+        self._branchTree = None
+        self._inputBranches = None
         self.out = wrappedOutputTree
 
         for field, kind in FIELDS.items():
@@ -319,22 +323,32 @@ class HZZAnalysisCppProducer(Module):
     def initReaders(self, tree):
         self._ttreereaderversion = tree._ttreereaderversion
 
-    def _select(self, event, worker, view="nominal"):
+    def _branch_names(self, event):
+        # The physical input schema is constant within one InputTree.
+        if self._branchTree is not event._tree:
+            self._branchTree = event._tree
+            self._inputBranches = {b.GetName() for b in event._tree.GetListOfBranches()}
+        return self._inputBranches
+
+    def _select(self, event, worker, view="nominal", nominal_worker=None, met=None):
         """Use the identical reconstruction and region selection for every view."""
+        if nominal_worker is not None:
+            source, shift = view.split("_", 1)
+            # Correction modules do not fill shift arrays for empty collections.
+            pt = list(getattr(event, "%s_%s_pt" % (source, shift))) if getattr(event, "n" + source) else []
+            mass = (list(getattr(event, "Jet_%s_mass" % shift))
+                    if source == "Jet" and event.nJet else [])
+            decision = worker.SelectVariation(nominal_worker, ("Electron", "Muon", "Jet").index(source), pt, mass, met)
+            return bool(decision & 1), bool(decision & 2)
         electrons = Collection(event, "Electron")
         muons = Collection(event, "Muon")
         fsrPhotons = Collection(event, "FsrPhoton")
         jets = Collection(event, "Jet")
 
-        branches = {b.GetName() for b in event._tree.GetListOfBranches()}
+        branches = self._branch_names(event)
 
         hasRPT = "Jet_btagRobustParTAK4B" in branches
         hasUPT = "Jet_btagUParTAK4B" in branches
-
-        preferUPT = (self.nanoVersion >= 15)
-        useUPT = hasUPT and (preferUPT or not hasRPT)
-
-        branches = [b.GetName() for b in event._tree.GetListOfBranches()]
 
         hasHZZ = "Electron_mvaHZZIso" in branches
         hasWPHZZ = "Electron_mvaIso_WPHZZ" in branches
@@ -353,27 +367,12 @@ class HZZAnalysisCppProducer(Module):
                 xe.pdgId
             )
 
-        branches = [b.GetName() for b in event._tree.GetListOfBranches()]
-
         hasCutBased = "Muon_looseId" in branches
-        hasLowPtId = "Muon_mvaLowPtId" in branches
-        hasMvaId = "Muon_mvaId" in branches
         hasLowPt = "Muon_mvaLowPt" in branches
 
         for xm in muons:
             looseId = bool(xm.looseId) if hasCutBased else False
-            mediumId = bool(xm.mediumId) if hasCutBased else False
-            tightId = bool(xm.tightId) if hasCutBased else False
-
-            mvaLowPtId = int(xm.mvaLowPtId) if hasLowPtId else 0
-            mvaId = int(xm.mvaId) if hasMvaId else 0
             mvaLowPt = float(xm.mvaLowPt) if hasLowPt else -999.
-
-            if mvaLowPtId < 0:
-                mvaLowPtId = 0
-            if mvaId < 0:
-                mvaId = 0
-
 
             worker.SetMuons(
                 shifted_value(xm, "Muon", "pt", view), xm.eta, xm.phi, xm.mass, xm.isGlobal, xm.isTracker,
@@ -535,7 +534,7 @@ class HZZAnalysisCppProducer(Module):
         electrons = Collection(event, "Electron")
         muons = Collection(event, "Muon")
         jets = Collection(event, "Jet")
-        branches = {b.GetName() for b in event._tree.GetListOfBranches()}
+        branches = self._branch_names(event)
         hasRPT = "Jet_btagRobustParTAK4B" in branches
         hasUPT = "Jet_btagUParTAK4B" in branches
         preferUPT = (self.nanoVersion >= 15)
@@ -1194,9 +1193,10 @@ class HZZAnalysisCppProducer(Module):
             self.out.fillBranch("recoverJet_idx", recoverJet_idx)
 
         results = [snapshot(self.worker, foundZZCandidate, foundZXCRCandidate, self.analysisMode)]
+        met = (float(event.PuppiMET_pt) if "PuppiMET_pt" in branches else
+               float(event.MET_pt) if "MET_pt" in branches else float("nan"))
         for view in self.views[1:]:
-            self.variationWorker.Initialize()
-            sr, cr = self._select(event, self.variationWorker, view)
+            sr, cr = self._select(event, self.variationWorker, view, self.worker, met)
             results.append(snapshot(self.variationWorker, sr, cr, self.analysisMode))
         keepIt = fill_results(self.out, results) or keepIt
 

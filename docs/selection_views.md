@@ -43,6 +43,11 @@ in the following stable order:
 | 5–8 | Muon_scaleUp, Muon_scaleDn, Muon_smearUp, Muon_smearDn |
 | 9–12 | Jet_scaleUp, Jet_scaleDn, Jet_smearUp, Jet_smearDn |
 
+The 12 shifts are two directions for six momentum-uncertainty sources: scale
+and resolution for each of the three collections. They cover the existing
+correction outputs, without prescribing the final statistical nuisance model
+or its correlations. They are not combinations of simultaneous shifts.
+
 Each view changes one source at a time, using the absolute pT values already
 produced by the correction modules. Jet variations also use the corresponding
 mass. Lepton rest masses, eta/phi, IDs, trigger decision, event weights and input
@@ -99,6 +104,21 @@ values. NATModules saves jet masses with 12 mantissa bits, so reconstructing mjj
 from the saved jet arrays has a small, expected quantization difference. Use the
 saved `Sel_*` decisions, indices and masses for these implemented views.
 
+## Input reuse
+
+Read the physical branch-name schema once per input tree and reset the cache
+at each file boundary. Load all nominal object inputs once. For each variation,
+`H4LTools::SelectVariation` resets the separate variation worker, copies only
+the nominal worker's raw event inputs inside C++, and replaces the indicated
+pT array (plus mass for jets). All derived caches, candidates and decisions are
+rebuilt by the same FSR, lepton, ZZ and ZXCR functions. No nominal decision or
+candidate is copied, and the nominal worker and cutflow are untouched.
+
+This removes repeated Python branch scans, object reads and scalar setter calls.
+The 13 output slots, all selection cuts and SR/CR union retention remain the same.
+In particular, two views with the same pass flag can still have different
+candidates or masses; pass-flag equality is not used to skip reconstruction.
+
 ## GenJet and FSR inputs
 
 Derived `GENjet_hadronFlavour` uses its own `nGENJets` counter. Native `nGenJet`
@@ -124,3 +144,7 @@ are not measured physics rates. The initial bounded raw-NanoAOD pilot compares
 PR29 nominal output before the FSR repair. A second pilot isolates the FSR repair
 with identical view/preselection logic on both sides, checks independent photon
 indices and isolation, and verifies native GenJet/FSR round trips and union retention.
+
+The performance change additionally compares scalar-loaded and C++-copied
+inputs for all 12 shifts in 4l, 4l2j and 2l2j controlled fixtures. These checks
+exercise the real selector; fixture scripts remain local.

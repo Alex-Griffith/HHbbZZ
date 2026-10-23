@@ -4,6 +4,51 @@
 #include "../interface/H4LSelection.h"
 #include <TLorentzVector.h>
 #include <vector>
+#include <stdexcept>
+
+int H4LTools::SelectVariation(const H4LTools& nominal, unsigned int source,
+                             const std::vector<float>& pt, const std::vector<float>& mass, float met){
+    // Copy only immutable event inputs, never nominal candidates or decisions.
+    // Avoid transferring every scalar through Python for each momentum shift.
+    if (this == &nominal) throw std::invalid_argument("Variation needs a separate worker");
+    const auto count = source == 0 ? nominal.Electron_pt.size() :
+                       source == 1 ? nominal.Muon_pt.size() : nominal.Jet_pt.size();
+    if (source > 2 || pt.size() != count || (source == 2 && mass.size() != count))
+        throw std::invalid_argument("Invalid selection variation inputs");
+    Initialize();
+    Electron_pt = source == 0 ? pt : nominal.Electron_pt;
+    Electron_phi = nominal.Electron_phi; Electron_eta = nominal.Electron_eta;
+    Electron_mass = nominal.Electron_mass; Electron_dxy = nominal.Electron_dxy;
+    Electron_dz = nominal.Electron_dz; Electron_sip3d = nominal.Electron_sip3d;
+    Electron_deltaEtaSC = nominal.Electron_deltaEtaSC;
+    Electron_mvaHZZIso = nominal.Electron_mvaHZZIso;
+    Electron_mvaIso_WPHZZ = nominal.Electron_mvaIso_WPHZZ;
+    Electron_pdgId = nominal.Electron_pdgId; Electron_genPartIdx = nominal.Electron_genPartIdx;
+    Muon_pt = source == 1 ? pt : nominal.Muon_pt;
+    Muon_phi = nominal.Muon_phi; Muon_eta = nominal.Muon_eta; Muon_mass = nominal.Muon_mass;
+    Muon_dxy = nominal.Muon_dxy; Muon_dz = nominal.Muon_dz; Muon_sip3d = nominal.Muon_sip3d;
+    Muon_pfRelIso03_all = nominal.Muon_pfRelIso03_all;
+    Muon_genPartIdx = nominal.Muon_genPartIdx; Muon_pdgId = nominal.Muon_pdgId;
+    Muon_isTracker = nominal.Muon_isTracker; Muon_isGlobal = nominal.Muon_isGlobal;
+    Muon_isPFcand = nominal.Muon_isPFcand; Muon_looseId = nominal.Muon_looseId;
+    Muon_mvaLowPt = nominal.Muon_mvaLowPt;
+    Jet_pt = source == 2 ? pt : nominal.Jet_pt;
+    Jet_mass = source == 2 ? mass : nominal.Jet_mass;
+    Jet_phi = nominal.Jet_phi; Jet_eta = nominal.Jet_eta; Jet_jetId = nominal.Jet_jetId;
+    Jet_btagDeepFlavB = nominal.Jet_btagDeepFlavB; Jet_btagPNetB = nominal.Jet_btagPNetB;
+    Jet_btagRobustParTAK4B = nominal.Jet_btagRobustParTAK4B; Jet_btagUParTAK4B = nominal.Jet_btagUParTAK4B;
+    FsrPhoton_phi = nominal.FsrPhoton_phi; FsrPhoton_pt = nominal.FsrPhoton_pt;
+    FsrPhoton_relIso03 = nominal.FsrPhoton_relIso03; FsrPhoton_eta = nominal.FsrPhoton_eta;
+    FsrPhoton_dROverEt2 = nominal.FsrPhoton_dROverEt2;
+    FsrPhoton_muonIdx = nominal.FsrPhoton_muonIdx; FsrPhoton_electronIdx = nominal.FsrPhoton_electronIdx;
+
+    BatchFsrRecovery_Run3();
+    LeptonSelection();
+    if (nTightEle < 2 && nTightMu < 2) return 0;
+    const bool sr = ZZSelection();
+    const bool cr = ZXCRSelection(met);
+    return int(sr) | (int(cr) << 1);
+}
 
 void H4LTools::SetAnalysisMode(const std::string& mode){
     analysisMode = mode;

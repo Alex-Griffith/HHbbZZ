@@ -163,6 +163,8 @@ class H4LTools {
       std::string analysisMode;
       void SetAnalysisMode(const std::string& mode);
       void SetNanoVersion(int v){ nanoVersion = v; }
+      int SelectVariation(const H4LTools& nominal, unsigned int source,
+                          const std::vector<float>& pt, const std::vector<float>& mass, float met);
       bool BuildZZCandidate();
       bool BuildBestDijet();
       bool ZXCRSelection(float met);
