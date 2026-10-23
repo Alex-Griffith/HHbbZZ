@@ -178,8 +178,14 @@ def main():
         # Keep three-lepton Z+X 2P1F events as well as the 4l/4l2j candidates.
         preselection_cut = "Sum$(Muon_pt>3) + Sum$(Electron_pt>5) >= 3"
 
+    # Only the enabled Run-3 MC envelope needs a count-only preselection.
+    # Data and nominal-only runs retain the original raw preselection.
+    if isMC and year >= 2022 and not args.NOsyst:
+        preselection_cut = "nMuon + nElectron >= %d" % (2 if analysisMode == "2l2j" else 3)
+
     # main analysis module
-    modulesToRun.append(HZZAnalysisCppProducer(year, cfgFile, isMC, isFSR, analysisMode, nanoVersion))
+    modulesToRun.append(HZZAnalysisCppProducer(year, cfgFile, isMC, isFSR, analysisMode, nanoVersion,
+                                               doSystematics=not args.NOsyst))
 
     print(("Input json file: {}".format(jsonFileName)))
     print(("Input cfg file: {}".format(cfgFile)))

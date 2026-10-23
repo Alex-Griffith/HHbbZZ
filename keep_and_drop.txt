@@ -133,3 +133,18 @@ keep nElectron
 keep nMuon
 keep Rho_*
 keep fixedGridRho*
+
+# Independent derived GenJet count and compact inputs for FSR reconstruction.
+keep nGENJets
+keep nFsrPhoton
+keep FsrPhoton_pt
+keep FsrPhoton_eta
+keep FsrPhoton_phi
+keep FsrPhoton_relIso03
+keep FsrPhoton_dROverEt2
+keep FsrPhoton_electronIdx
+keep FsrPhoton_muonIdx
+# One event for the union of nominal and the available selection views.
+keep nSel
+keep nSelGoodJet
+keep Sel_*
