@@ -11,7 +11,7 @@ class H4LTools {
       H4LTools(bool isMC_);
       float elePtcut, MuPtcut, eleEtacut, MuEtacut, elesip3dCut, Musip3dCut,Zmass,MZ1cut,MZcutup,MZcutdown,MZZcut,HiggscutUp,HiggscutDown;
       float eleLoosedxycut,eleLoosedzcut,MuLoosedxycut,MuLoosedzcut;
-      float fsrphotonPtcut,fsrphotonEtacut,fsrphotonIsocut,JetPtcut,JetEtacut;
+      float fsrphotonPtcut,fsrphotonEtacut,fsrphotonIsocut,fsrphotonDRcut,fsrphotonDROverPt2cut,JetPtcut,JetEtacut;
       int JetNcut;
       // NanoAOD indices of the exact leptons used in jet cleaning.
       std::vector<unsigned int> jetCleaningElectronIdx, jetCleaningMuonIdx;
@@ -67,10 +67,13 @@ class H4LTools {
         MuLoosedxycut = MuLoosedxycut_;
         MuLoosedzcut = MuLoosedzcut_;
       }
-      void InitializeFsrPhotonCut(float fsrphotonPtcut_, float fsrphotonEtacut_, float fsrphotonIsocut_){
+      void InitializeFsrPhotonCut(float fsrphotonPtcut_, float fsrphotonEtacut_, float fsrphotonIsocut_,
+                                  float fsrphotonDRcut_, float fsrphotonDROverPt2cut_){
         fsrphotonPtcut = fsrphotonPtcut_;
         fsrphotonEtacut = fsrphotonEtacut_;
         fsrphotonIsocut = fsrphotonIsocut_;
+        fsrphotonDRcut = fsrphotonDRcut_;
+        fsrphotonDROverPt2cut = fsrphotonDROverPt2cut_;
       }
       void InitializeJetcut(float JetPtcut_, float JetEtacut_, int JetNcut_){
         JetPtcut = JetPtcut_;
@@ -146,11 +149,12 @@ class H4LTools {
       }
 
       void SetFsrPhotons(float FsrPhoton_eta_,
-                        float FsrPhoton_phi_, float FsrPhoton_pt_, float FsrPhoton_relIso03_, int FsrPhoton_electronIdx_, int FsrPhoton_muonIdx_){
+                        float FsrPhoton_phi_, float FsrPhoton_pt_, float FsrPhoton_relIso03_, int FsrPhoton_electronIdx_, int FsrPhoton_muonIdx_, float FsrPhoton_dROverEt2_){
         FsrPhoton_phi.push_back(FsrPhoton_phi_);
         FsrPhoton_eta.push_back(FsrPhoton_eta_);
         FsrPhoton_pt.push_back(FsrPhoton_pt_);
         FsrPhoton_relIso03.push_back(FsrPhoton_relIso03_);
+        FsrPhoton_dROverEt2.push_back(FsrPhoton_dROverEt2_);
         FsrPhoton_electronIdx.push_back(FsrPhoton_electronIdx_);
         FsrPhoton_muonIdx.push_back(FsrPhoton_muonIdx_);
       }
@@ -187,6 +191,9 @@ class H4LTools {
       std::vector<unsigned int> SelectedJets(std::vector<unsigned int> ele, std::vector<unsigned int> mu);
       std::vector<TLorentzVector> Electrondressed_Run3;
       std::vector<TLorentzVector> Muondressed_Run3;
+      // Analysis-selected raw photon indices (-1 if none), distinct from NanoAOD backlinks.
+      std::vector<int> ElectronFsrPhotonIdx, MuonFsrPhotonIdx;
+      std::vector<float> MuonFsrRelIso03;
       std::vector<TLorentzVector> Zlist;
       std::vector<TLorentzVector> Zlistnofsr;
       std::vector<int> Zflavor; //mu->13, e->11
@@ -235,6 +242,10 @@ class H4LTools {
       std::vector<int> TightElelep_index;
       std::vector<int> TightMulep_index;
       int lep_Hindex[4];
+      // Stable NanoAOD source identities for each selected Z1/Z2 leg.
+      int candidateLepIdx[4] = {-1, -1, -1, -1};
+      int candidateLepPdgId[4] = {0, 0, 0, 0};
+      int dijetIdx[2] = {-1, -1};
       TLorentzVector Z1;
       TLorentzVector Z1nofsr;
       TLorentzVector Z2;
@@ -267,6 +278,8 @@ class H4LTools {
         Jet_pt.clear();Jet_phi.clear();Jet_eta.clear();Jet_mass.clear();Jet_btagDeepFlavB.clear();Jet_btagPNetB.clear();Jet_btagRobustParTAK4B.clear();Jet_btagUParTAK4B.clear();
         Jet_jetId.clear(); Zlep1lepindex.clear();Zlep2lepindex.clear(); 
         FsrPhoton_phi.clear();FsrPhoton_eta.clear();FsrPhoton_pt.clear();FsrPhoton_relIso03.clear(); FsrPhoton_electronIdx.clear(); FsrPhoton_muonIdx.clear();
+        FsrPhoton_dROverEt2.clear();
+        ElectronFsrPhotonIdx.clear(); MuonFsrPhotonIdx.clear(); MuonFsrRelIso03.clear();
         Zlist.clear();
         Zlistnofsr.clear();
         Zflavor.clear();
@@ -283,6 +296,8 @@ class H4LTools {
         jetidx.clear(); lep_genindex.clear(); TightElelep_index.clear();TightMulep_index.clear();
         Elechg.clear(); Muchg.clear(); TightEleindex.clear(); TightMuindex.clear();
         for (int i=0; i<4; i++) {lep_Hindex[i]=-1;}
+        for (int i=0; i<4; i++) {candidateLepIdx[i]=-1; candidateLepPdgId[i]=0;}
+        dijetIdx[0] = dijetIdx[1] = -1;
         Z1.SetPtEtaPhiM(0,0,0,0);
         Z1nofsr.SetPtEtaPhiM(0,0,0,0);
         Z2.SetPtEtaPhiM(0,0,0,0);
@@ -347,7 +362,7 @@ class H4LTools {
       std::vector<bool> Muon_looseId;
       std::vector<float> Muon_mvaLowPt;
 
-      std::vector<float> FsrPhoton_phi, FsrPhoton_pt, FsrPhoton_relIso03, FsrPhoton_eta;
+      std::vector<float> FsrPhoton_phi, FsrPhoton_pt, FsrPhoton_relIso03, FsrPhoton_eta, FsrPhoton_dROverEt2;
       std::vector<int> FsrPhoton_muonIdx, FsrPhoton_electronIdx;
 
       int nanoVersion = 12;
