@@ -113,13 +113,9 @@ add unrelated trigger collections or broaden raw photon retention.
 
 ## Validation
 
-Run in the existing CMSSW/NanoAODTools runtime:
-
-```bash
-uv run --managed-python --python 3.9 python tests/test_selection_variations_root.py
-```
-
-The test uses controlled fixtures with the actual C++ selector to check FSR
+Validation was performed in the existing CMSSW/NanoAODTools runtime. The fixture
+script is retained locally and is not included in this pull request.
+Controlled fixtures with the actual C++ selector check FSR
 minimum-score choice, photon quality/radius cuts, isolation-cone boundaries,
 native ownership, the disabled FSR switch, lepton
 threshold migration, CR jet migration in inclusive 4l, tied b tags, source
