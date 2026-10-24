@@ -2,18 +2,18 @@
 This is the nanoAOD skiming code for HH->bbZZ->bb4l analysis of Run 3 data.
 
 
-To install a complete CMSSW 13X area (including this package)
+To install a complete CMSSW area (including this package)
 ------------------------------
 Used for analysis of 2022 data and beyond
 
-Please use **CMSSW_13_3_3**. 
+Please use >= **CMSSW_14_1_1**. 
 
 Download and execute the setup script:
 ```
-cmsrel CMSSW_13_3_3
-cd CMSSW_13_3_3/src
+cmsrel CMSSW_14_1_1
+cd CMSSW_14_1_1/src
 cmsenv
-wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HZZ_Analysis_Run3/checkout.csh
+wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HHbbZZ_Analysis_Run3/checkout.csh
 chmod u+x ${TMPDIR}/checkout.csh
 ${TMPDIR}/checkout.csh
 scramv1 b -j 8
