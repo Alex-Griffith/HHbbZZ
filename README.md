@@ -16,7 +16,7 @@ cmsenv
 wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HZZ_Analysis_Run3/checkout.csh
 chmod u+x ${TMPDIR}/checkout.csh
 ${TMPDIR}/checkout.csh
-scramv1 b -j 4
+scramv1 b -j 8
 ```
 
 
