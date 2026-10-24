@@ -27,8 +27,8 @@ scramv1 b -j 8
 1. Step: 1: Get CMSSW release
 
    ```bash
-   cmsrel CMSSW_13_3_3
-   cd CMSSW_13_3_3/src
+   cmsrel CMSSW_14_1_1
+   cd CMSSW_14_1_1/src
    cmsenv
    ```
 
