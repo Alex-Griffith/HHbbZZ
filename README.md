@@ -2,21 +2,21 @@
 This is the nanoAOD skiming code for HH->bbZZ->bb4l analysis of Run 3 data.
 
 
-To install a complete CMSSW 13X area (including this package)
+To install a complete CMSSW area (including this package)
 ------------------------------
 Used for analysis of 2022 data and beyond
 
-Please use **CMSSW_13_3_3**. 
+Please use >= **CMSSW_14_1_1**. 
 
 Download and execute the setup script:
 ```
-cmsrel CMSSW_13_3_3
-cd CMSSW_13_3_3/src
+cmsrel CMSSW_14_1_1
+cd CMSSW_14_1_1/src
 cmsenv
-wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HZZ_Analysis_Run3/checkout.csh
+wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HHbbZZ_Analysis_Run3/checkout.csh
 chmod u+x ${TMPDIR}/checkout.csh
 ${TMPDIR}/checkout.csh
-scramv1 b -j 4
+scramv1 b -j 8
 ```
 
 
@@ -27,8 +27,8 @@ scramv1 b -j 4
 1. Step: 1: Get CMSSW release
 
    ```bash
-   cmsrel CMSSW_13_3_3
-   cd CMSSW_13_3_3/src
+   cmsrel CMSSW_14_1_1
+   cd CMSSW_14_1_1/src
    cmsenv
    ```
 
@@ -51,11 +51,7 @@ scramv1 b -j 4
    cd PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
    cd -
    cmsenv
-
-   # patch PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/nanoAOD_tools.patch
-   cp PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/data/btag/*.csv PhysicsTools/NanoAODTools/data/btagSF/.
    scram b -j12
-   voms-proxy-init --voms cms --valid 168:00
    ```
 
    (Optional: Fix git repo)
@@ -64,13 +60,6 @@ scramv1 b -j 4
    find PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim/.git/ -name "*.py*" -delete
    ```
 
-4. Step: 4: Get the MELA package
-
-   ```bash
-   cd $CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim
-   git clone https://github.com/JHUGen/JHUGenMELA.git JHUGenMELA
-   (cd JHUGenMELA; git checkout -b from-v242 v2.4.2; ./setup.sh)
-   ```
 
 4. Step: 4: interactive running
 
@@ -88,7 +77,7 @@ scramv1 b -j 4
          # Use the arguments that you need.
          python condor_setup_lxplus.py --input-file sample_list_v12_2022.dat
          # Set proxy before submitting the condor jobs.
-         voms-proxy-init -voms cms --valid 200:00
+         voms-proxy-init -voms cms --valid 168:00
          condor_submit <Files-created-from-above-command>.jdl
          ```
 
