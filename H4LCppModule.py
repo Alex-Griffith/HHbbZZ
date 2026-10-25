@@ -3,12 +3,14 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collect
 import ROOT
 import yaml
 import os
+from array import array
 from Helper import *
+from selection_variations import VIEWS, FIELDS, shifted_value, validate_inputs, snapshot, fill_results
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 
 class HZZAnalysisCppProducer(Module):
-    def __init__(self, year, cfgFile, isMC, isFSR, analysisMode, nanoVersion):
+    def __init__(self, year, cfgFile, isMC, isFSR, analysisMode, nanoVersion, doSystematics=True):
         base = "$CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim"
 
         if "/GenAnalysis_cc.so" not in ROOT.gSystem.GetLibraries():
@@ -37,36 +39,48 @@ class HZZAnalysisCppProducer(Module):
         self.nanoVersion = nanoVersion
         self.genworker = ROOT.GenAnalysis()
 
+        self.isFSR = isFSR
         with open(cfgFile, 'r') as ymlfile:
-            cfg = yaml.full_load(ymlfile)
-            self.worker = ROOT.H4LTools(self.isMC)
-            self.worker.InitializeElecut(
-                cfg['Electron']['pTcut'], cfg['Electron']['Etacut'], cfg['Electron']['Sip3dcut'],
-                cfg['Electron']['Loosedxycut'], cfg['Electron']['Loosedzcut'],
-                cfg['Electron']['BDTWP']['LowEta']['LowPT'], cfg['Electron']['BDTWP']['MedEta']['LowPT'], cfg['Electron']['BDTWP']['HighEta']['LowPT'],
-                cfg['Electron']['BDTWP']['LowEta']['HighPT'], cfg['Electron']['BDTWP']['MedEta']['HighPT'], cfg['Electron']['BDTWP']['HighEta']['HighPT']
-            )
-            self.worker.InitializeMucut(
-                cfg['Muon']['pTcut'], cfg['Muon']['Etacut'], cfg['Muon']['Sip3dcut'],
-                cfg['Muon']['Loosedxycut'], cfg['Muon']['Loosedzcut']
-            )
-            self.worker.InitializeFsrPhotonCut(
-                cfg['FsrPhoton']['pTcut'], cfg['FsrPhoton']['Etacut'],
-                cfg['FsrPhoton']['Isocut']
-            )
-            self.worker.InitializeJetcut(cfg['Jet']['pTcut'], cfg['Jet']['Etacut'], cfg['Jet']['Ncut'])
-            self.worker.InitializeEvtCut(
-                cfg['MZZcut'], cfg['Higgscut']['down'], cfg['Higgscut']['up'],
-                cfg['Zmass'], cfg['MZ1cut'], cfg['MZcut']['down'], cfg['MZcut']['up']
-            )
+            self.selectionConfig = yaml.full_load(ymlfile)
+        self.worker = self._make_worker()
+        self.views = VIEWS if self.isMC and doSystematics and self.year >= 2022 else VIEWS[:1]
+        self.variationWorker = self._make_worker() if len(self.views) > 1 else None
+        self._branchTree = None
+        self._inputBranches = None
 
         self.passtrigEvts = 0
         self.passZZEvts = 0
         self.cfgFile = cfgFile
-        self.worker.isFSR = isFSR
-        self.worker.SetAnalysisMode(self.analysisMode)
-        self.worker.SetNanoVersion(self.nanoVersion)
         self.print_count = 0
+
+    def _make_worker(self):
+        cfg = self.selectionConfig
+        worker = ROOT.H4LTools(self.isMC)
+        worker.InitializeElecut(
+            cfg['Electron']['pTcut'], cfg['Electron']['Etacut'], cfg['Electron']['Sip3dcut'],
+            cfg['Electron']['Loosedxycut'], cfg['Electron']['Loosedzcut'],
+            cfg['Electron']['BDTWP']['LowEta']['LowPT'], cfg['Electron']['BDTWP']['MedEta']['LowPT'], cfg['Electron']['BDTWP']['HighEta']['LowPT'],
+            cfg['Electron']['BDTWP']['LowEta']['HighPT'], cfg['Electron']['BDTWP']['MedEta']['HighPT'], cfg['Electron']['BDTWP']['HighEta']['HighPT']
+        )
+        worker.InitializeMucut(
+            cfg['Muon']['pTcut'], cfg['Muon']['Etacut'], cfg['Muon']['Sip3dcut'],
+            cfg['Muon']['Loosedxycut'], cfg['Muon']['Loosedzcut']
+        )
+        worker.InitializeFsrPhotonCut(
+            cfg['FsrPhoton']['pTcut'], cfg['FsrPhoton']['Etacut'],
+            cfg['FsrPhoton']['Isocut'], cfg['FsrPhoton']['dRlcut'],
+            cfg['FsrPhoton']['dRlOverPtcut']
+        )
+        worker.InitializeJetcut(cfg['Jet']['pTcut'], cfg['Jet']['Etacut'], cfg['Jet']['Ncut'])
+        worker.InitializeEvtCut(
+            cfg['MZZcut'], cfg['Higgscut']['down'], cfg['Higgscut']['up'],
+            cfg['Zmass'], cfg['MZ1cut'], cfg['MZcut']['down'], cfg['MZcut']['up']
+        )
+
+        worker.isFSR = self.isFSR
+        worker.SetAnalysisMode(self.analysisMode)
+        worker.SetNanoVersion(self.nanoVersion)
+        return worker
 
     def beginJob(self):
         pass
@@ -119,8 +133,13 @@ class HZZAnalysisCppProducer(Module):
 
     def beginFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
         self.initReaders(inputTree)
+        self._branchTree = None
+        self._inputBranches = None
         self.out = wrappedOutputTree
 
+        for field, kind in FIELDS.items():
+            self.out.branch("Sel_" + field, kind, lenVar="nSel")
+        self.out.branch("Sel_goodJetIdx", "I", lenVar="nSelGoodJet")
         self.out.branch("mass4l", "F")
         self.out.branch("GENmass4l", "F")
         self.out.branch("mass4e", "F")
@@ -229,6 +248,9 @@ class HZZAnalysisCppProducer(Module):
         self.out.branch("Muon_Fsr_pt", "F", lenVar="nMuon_Fsr")
         self.out.branch("Muon_Fsr_eta", "F", lenVar="nMuon_Fsr")
         self.out.branch("Muon_Fsr_phi", "F", lenVar="nMuon_Fsr")
+        self.out.branch("Electron_fsrPhotonIdxAnalysis", "I", lenVar="nElectron")
+        self.out.branch("Muon_fsrPhotonIdxAnalysis", "I", lenVar="nMuon")
+        self.out.branch("Muon_pfRelIso03FsrCorr", "F", lenVar="nMuon")
 
         self.out.branch("goodJet_idx", "I", lenVar="ngoodJets")
         self.out.branch("Electron_jetCleaning", "O", lenVar="nElectron")
@@ -239,7 +261,7 @@ class HZZAnalysisCppProducer(Module):
         self.out.branch("goodJet_mass", "F", lenVar="ngoodJets")
         self.out.branch("goodJet_btagRPT", "F", lenVar="ngoodJets")
         self.out.branch("goodJet_btagUPT", "F", lenVar="ngoodJets")
-        self.out.branch("GENjet_hadronFlavour", "I", lenVar="nGenJet")
+        self.out.branch("GENjet_hadronFlavour", "I", lenVar="nGENJets")
         self.out.branch("GENjet_Hindex", "I", lenVar="GENHjetNum")
         self.out.branch("nTightEle", "I")
         self.out.branch("nTightMu", "I")
@@ -282,10 +304,117 @@ class HZZAnalysisCppProducer(Module):
             f.write("Sync data list:\n")
 
     def endFile(self, inputFile, outputFile, inputTree, wrappedOutputTree):
-        pass
+        outputFile.cd()
+        # haddnano writes TObjString using its contents as the key name.
+        # A named TTree preserves this contract through file merging.
+        metadata = ROOT.TTree("SelectionViews", "Selection view schema and slot names")
+        version, view_id = array("i", [1]), array("i", [0])
+        name = ROOT.std.string()
+        metadata.Branch("schemaVersion", version, "schemaVersion/I")
+        metadata.Branch("viewId", view_id, "viewId/I")
+        metadata.Branch("viewName", name)
+        for index, view in enumerate(self.views):
+            view_id[0] = index
+            name.assign(view)
+            metadata.Fill()
+        metadata.Write()
+        metadata.SetDirectory(0)
 
     def initReaders(self, tree):
         self._ttreereaderversion = tree._ttreereaderversion
+
+    def _branch_names(self, event):
+        # The physical input schema is constant within one InputTree.
+        if self._branchTree is not event._tree:
+            self._branchTree = event._tree
+            self._inputBranches = {b.GetName() for b in event._tree.GetListOfBranches()}
+        return self._inputBranches
+
+    def _select(self, event, worker, view="nominal", nominal_worker=None, met=None):
+        """Use the identical reconstruction and region selection for every view."""
+        if nominal_worker is not None:
+            source, shift = view.split("_", 1)
+            # Correction modules do not fill shift arrays for empty collections.
+            pt = list(getattr(event, "%s_%s_pt" % (source, shift))) if getattr(event, "n" + source) else []
+            mass = (list(getattr(event, "Jet_%s_mass" % shift))
+                    if source == "Jet" and event.nJet else [])
+            decision = worker.SelectVariation(nominal_worker, ("Electron", "Muon", "Jet").index(source), pt, mass, met)
+            return bool(decision & 1), bool(decision & 2)
+        electrons = Collection(event, "Electron")
+        muons = Collection(event, "Muon")
+        fsrPhotons = Collection(event, "FsrPhoton")
+        jets = Collection(event, "Jet")
+
+        branches = self._branch_names(event)
+
+        hasRPT = "Jet_btagRobustParTAK4B" in branches
+        hasUPT = "Jet_btagUParTAK4B" in branches
+
+        hasHZZ = "Electron_mvaHZZIso" in branches
+        hasWPHZZ = "Electron_mvaIso_WPHZZ" in branches
+        hasDeltaEtaSC = "Electron_deltaEtaSC" in branches
+        for xe in electrons:
+
+            deltaEtaSC = xe.deltaEtaSC if hasDeltaEtaSC else 0.
+            mvaHZZIso = xe.mvaHZZIso if hasHZZ else -999.
+            mvaIso_WPHZZ = bool(xe.mvaIso_WPHZZ) if hasWPHZZ else False
+
+            worker.SetElectrons(
+                shifted_value(xe, "Electron", "pt", view), xe.eta, xe.phi, xe.mass, xe.dxy, xe.dz, xe.sip3d,
+                deltaEtaSC,
+                mvaHZZIso,
+                mvaIso_WPHZZ,
+                xe.pdgId
+            )
+
+        hasCutBased = "Muon_looseId" in branches
+        hasLowPt = "Muon_mvaLowPt" in branches
+
+        for xm in muons:
+            looseId = bool(xm.looseId) if hasCutBased else False
+            mvaLowPt = float(xm.mvaLowPt) if hasLowPt else -999.
+
+            worker.SetMuons(
+                shifted_value(xm, "Muon", "pt", view), xm.eta, xm.phi, xm.mass, xm.isGlobal, xm.isTracker,
+                xm.dxy, xm.dz,
+                xm.sip3d,looseId, mvaLowPt,
+                xm.isPFcand, xm.pdgId, xm.pfRelIso03_all
+            )
+
+        for xf in fsrPhotons:
+            worker.SetFsrPhotons(
+                xf.eta, xf.phi, xf.pt,
+                xf.relIso03, xf.electronIdx, xf.muonIdx, xf.dROverEt2
+            )
+
+        for xj in jets:
+            btagDeepFlavB = xj.btagDeepFlavB if "Jet_btagDeepFlavB" in branches else -999.
+            btagPNetB = xj.btagPNetB if "Jet_btagPNetB" in branches else -999.
+
+            btagRPT = xj.btagRobustParTAK4B if hasRPT else -999.
+            btagUPT = xj.btagUParTAK4B if hasUPT else -999.
+
+            worker.SetJets(
+                shifted_value(xj, "Jet", "pt", view), xj.eta, xj.phi, shifted_value(xj, "Jet", "mass", view), xj.jetId,
+                btagDeepFlavB, btagPNetB, btagRPT, btagUPT
+            )
+
+        if self.isMC:
+            for xe in electrons:
+                worker.SetElectronsGen(xe.genPartIdx)
+            for xm in muons:
+                worker.SetMuonsGen(xm.genPartIdx)
+
+        worker.BatchFsrRecovery_Run3()
+        worker.LeptonSelection()
+
+        hasTwoTightLeps = ((worker.nTightEle >= 2) or (worker.nTightMu >= 2))
+
+        foundZZCandidate = worker.ZZSelection() if hasTwoTightLeps else False
+        met = (float(event.PuppiMET_pt) if "PuppiMET_pt" in branches else
+               float(event.MET_pt) if "MET_pt" in branches else float("nan"))
+        foundZXCRCandidate = worker.ZXCRSelection(met) if hasTwoTightLeps else False
+        return bool(foundZZCandidate), bool(foundZXCRCandidate)
 
     def analyze(self, event):
         self.worker.Initialize()
@@ -404,17 +533,12 @@ class HZZAnalysisCppProducer(Module):
 
         electrons = Collection(event, "Electron")
         muons = Collection(event, "Muon")
-        fsrPhotons = Collection(event, "FsrPhoton")
         jets = Collection(event, "Jet")
-        
-        branches = {b.GetName() for b in event._tree.GetListOfBranches()}
-
+        branches = self._branch_names(event)
         hasRPT = "Jet_btagRobustParTAK4B" in branches
         hasUPT = "Jet_btagUParTAK4B" in branches
-
         preferUPT = (self.nanoVersion >= 15)
         useUPT = hasUPT and (preferUPT or not hasRPT)
-        
         if isMC:
             nGenPart = event.nGenPart
             genparts = Collection(event, "GenPart")
@@ -426,86 +550,9 @@ class HZZAnalysisCppProducer(Module):
                     xg.pt, xg.eta, xg.phi, xg.mass,
                     xg.pdgId, xg.status, xg.genPartIdxMother
                 )
-            for xm in muons:
-                self.worker.SetMuonsGen(xm.genPartIdx)
-            for xe in electrons:
-                self.worker.SetElectronsGen(xe.genPartIdx)
 
-        branches = [b.GetName() for b in event._tree.GetListOfBranches()]
-        
-        hasHZZ = "Electron_mvaHZZIso" in branches
-        hasWPHZZ = "Electron_mvaIso_WPHZZ" in branches
-        hasDeltaEtaSC = "Electron_deltaEtaSC" in branches
-        for xe in electrons:
-            
-            deltaEtaSC = xe.deltaEtaSC if hasDeltaEtaSC else 0.
-            mvaHZZIso = xe.mvaHZZIso if hasHZZ else -999.
-            mvaIso_WPHZZ = bool(xe.mvaIso_WPHZZ) if hasWPHZZ else False
-
-            self.worker.SetElectrons(
-                xe.pt, xe.eta, xe.phi, xe.mass, xe.dxy, xe.dz, xe.sip3d,
-                deltaEtaSC, 
-                mvaHZZIso,
-                mvaIso_WPHZZ,
-                xe.pdgId
-            )
-        
-        branches = [b.GetName() for b in event._tree.GetListOfBranches()]
-
-        hasCutBased = "Muon_looseId" in branches
-        hasLowPtId = "Muon_mvaLowPtId" in branches
-        hasMvaId = "Muon_mvaId" in branches
-        hasLowPt = "Muon_mvaLowPt" in branches
-
-        for xm in muons:
-            looseId = bool(xm.looseId) if hasCutBased else False
-            mediumId = bool(xm.mediumId) if hasCutBased else False
-            tightId = bool(xm.tightId) if hasCutBased else False
-
-            mvaLowPtId = int(xm.mvaLowPtId) if hasLowPtId else 0
-            mvaId = int(xm.mvaId) if hasMvaId else 0
-            mvaLowPt = float(xm.mvaLowPt) if hasLowPt else -999.
-            
-            if mvaLowPtId < 0:
-                mvaLowPtId = 0
-            if mvaId < 0:
-                mvaId = 0
-
-
-            self.worker.SetMuons(
-                xm.pt, xm.eta, xm.phi, xm.mass, xm.isGlobal, xm.isTracker,
-                xm.dxy, xm.dz, 
-                xm.sip3d,looseId, mvaLowPt,
-                xm.isPFcand, xm.pdgId, xm.pfRelIso03_all
-            )
-
-        for xf in fsrPhotons:
-            self.worker.SetFsrPhotons(
-                xf.eta, xf.phi, xf.pt,
-                xf.relIso03, xf.electronIdx, xf.muonIdx
-            )
-
-        for xj in jets:
-            btagDeepFlavB = xj.btagDeepFlavB if "Jet_btagDeepFlavB" in branches else -999.
-            btagPNetB = xj.btagPNetB if "Jet_btagPNetB" in branches else -999.
-            
-            btagRPT = xj.btagRobustParTAK4B if hasRPT else -999.
-            btagUPT = xj.btagUParTAK4B if hasUPT else -999.
-
-            self.worker.SetJets(
-                xj.pt, xj.eta, xj.phi, xj.mass, xj.jetId,
-                btagDeepFlavB, btagPNetB, btagRPT, btagUPT
-            )
-
-        self.worker.BatchFsrRecovery_Run3()
-        self.worker.LeptonSelection()
-
-        hasTwoTightLeps = ((self.worker.nTightEle >= 2) or (self.worker.nTightMu >= 2))
-        
-        foundZZCandidate = self.worker.ZZSelection() if hasTwoTightLeps else False
-        met = (float(event.PuppiMET_pt) if "PuppiMET_pt" in branches else
-               float(event.MET_pt) if "MET_pt" in branches else float("nan"))
-        foundZXCRCandidate = self.worker.ZXCRSelection(met) if hasTwoTightLeps else False
+        validate_inputs(event, self.views)
+        foundZZCandidate, foundZXCRCandidate = self._select(event, self.worker)
         isSR = bool(foundZZCandidate)
         isZXCR = bool(foundZXCRCandidate)
         
@@ -1095,6 +1142,9 @@ class HZZAnalysisCppProducer(Module):
         self.out.fillBranch("Muon_Fsr_pt", Muon_Fsr_pt)
         self.out.fillBranch("Muon_Fsr_eta", Muon_Fsr_eta)
         self.out.fillBranch("Muon_Fsr_phi", Muon_Fsr_phi)
+        self.out.fillBranch("Electron_fsrPhotonIdxAnalysis", list(self.worker.ElectronFsrPhotonIdx))
+        self.out.fillBranch("Muon_fsrPhotonIdxAnalysis", list(self.worker.MuonFsrPhotonIdx))
+        self.out.fillBranch("Muon_pfRelIso03FsrCorr", list(self.worker.MuonFsrRelIso03))
         self.out.fillBranch("goodJet_idx", [int(i) for i in goodJet_idxs])
         clean_e = set(self.worker.jetCleaningElectronIdx)
         clean_mu = set(self.worker.jetCleaningMuonIdx)
@@ -1141,6 +1191,14 @@ class HZZAnalysisCppProducer(Module):
             self.out.fillBranch("recoverJet_passBtag", recoverJet_passBtag)
             self.out.fillBranch("recoverJet_passMjj", recoverJet_passMjj)
             self.out.fillBranch("recoverJet_idx", recoverJet_idx)
+
+        results = [snapshot(self.worker, foundZZCandidate, foundZXCRCandidate, self.analysisMode)]
+        met = (float(event.PuppiMET_pt) if "PuppiMET_pt" in branches else
+               float(event.MET_pt) if "MET_pt" in branches else float("nan"))
+        for view in self.views[1:]:
+            sr, cr = self._select(event, self.variationWorker, view, self.worker, met)
+            results.append(snapshot(self.variationWorker, sr, cr, self.analysisMode))
+        keepIt = fill_results(self.out, results) or keepIt
 
         return keepIt
 

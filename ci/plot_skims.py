@@ -4,6 +4,8 @@
 Usage: plot_skims.py REF_DIR NEW_DIR [--tree Events] [--outdir plots] [--summary summary.md]
 Writes one PNG per sample and variable, one multi-page PDF per sample, and a markdown
 table of entries and means. Variables missing from both files get a table row but no plot.
+By default only nominal SR or CR events contribute; --selection all reproduces the
+inclusive saved-event plots. Each side uses its own nominal selection.
 Besides the general distributions, it covers the MLP input variables; angles and mT that
 are not stored in the skim are computed from the stored kinematics (see DERIVED).
 """
@@ -132,11 +134,20 @@ def var_key(name):
     return "+".join(name) if isinstance(name, tuple) else name
 
 
-def derived(tree, name):
+def selection_mask(tree, selection):
+    if selection == "all":
+        return np.ones(tree.num_entries, dtype=bool)
+    branches = {"nominal": ("passedFullSelection", "isZXCR"),
+                "sr": ("passedFullSelection",), "cr": ("isZXCR",)}[selection]
+    # Missing flags must fail rather than silently include variation-only events.
+    return np.logical_or.reduce([tree[n].array(library="np") != 0 for n in branches])
+
+
+def derived(tree, name, event_mask):
     inputs, func = DERIVED[name]
     if any(n not in tree for n in inputs):
         return None
-    arr = {n: tree[n].array(library="ak") for n in inputs}
+    arr = {n: tree[n].array(library="ak")[event_mask] for n in inputs}
     scalars = {n: ak.to_numpy(a).astype(np.float64) for n, a in arr.items() if a.ndim == 1}
     valid = np.logical_and.reduce([v > SENTINEL + 0.5 for v in scalars.values()])
     with np.errstate(invalid="ignore"):
@@ -144,15 +155,15 @@ def derived(tree, name):
     return np.where(valid, out, np.nan)
 
 
-def values(tree, name):
+def values(tree, name, event_mask):
     """Flat numpy array of the variable, sentinels removed; None if a branch is missing."""
     if name in DERIVED:
-        flat = derived(tree, name)
+        flat = derived(tree, name, event_mask)
         return None if flat is None else flat[np.isfinite(flat)]
     names = name if isinstance(name, tuple) else (name,)
     if any(n not in tree for n in names):
         return None
-    arrs = [tree[n].array(library="ak") for n in names]
+    arrs = [tree[n].array(library="ak")[event_mask] for n in names]
     arr = arrs[0] if len(arrs) == 1 else sum(arrs[1:], arrs[0])
     flat = ak.to_numpy(ak.flatten(arr, axis=None)).astype(np.float64)
     return flat[np.isfinite(flat) & (flat > SENTINEL + 0.5)]
@@ -200,6 +211,8 @@ def main():
     p.add_argument("--tree", default="Events")
     p.add_argument("--outdir", type=Path, default=Path("plots"))
     p.add_argument("--summary", type=Path, default=Path("plots_summary.md"))
+    p.add_argument("--selection", choices=("nominal", "sr", "cr", "all"), default="nominal",
+                   help="event selection (default: nominal SR or CR; applied separately to each side)")
     args = p.parse_args()
 
     ref_files = sorted(args.ref_dir.glob("*.root"))
@@ -207,7 +220,10 @@ def main():
         raise FileNotFoundError(f"no .root files in {args.ref_dir}")
     args.outdir.mkdir(parents=True, exist_ok=True)
 
+    selections = {"nominal": "passedFullSelection || isZXCR", "sr": "passedFullSelection",
+                  "cr": "isZXCR", "all": "all saved events"}
     out = ["# Distributions: base vs PR", "",
+           f"Event selection: `{selections[args.selection]}` (each side independently).", "",
            "Plots are in the `skim-comparison` artifact under `plots/`. Cells: entries / mean.", ""]
     for ref_path in ref_files:
         new_path = args.new_dir / ref_path.name
@@ -217,19 +233,24 @@ def main():
         sample_dir = args.outdir / sample
         sample_dir.mkdir(exist_ok=True)
         ref_tree, new_tree = uproot.open(ref_path)[args.tree], uproot.open(new_path)[args.tree]
+        ref_mask = selection_mask(ref_tree, args.selection)
+        new_mask = selection_mask(new_tree, args.selection)
 
-        out += [f"## {sample}", "", "| variable | base | PR |", "|---|---|---|"]
+        out += [f"## {sample}", "",
+                f"Selected events: base {int(ref_mask.sum())} / {ref_tree.num_entries} saved; "
+                f"PR {int(new_mask.sum())} / {new_tree.num_entries} saved.", "",
+                "| variable | base | PR |", "|---|---|---|"]
         with PdfPages(args.outdir / f"{sample}.pdf") as pdf:
             for name, label, edges in VARIABLES:
                 # Values below the axis (e.g. mass4l=0, b-tag defaults -1/-3) are dropped
                 # from plots and means; values above it go into the last bin.
                 ref, new = (None if v is None else v[v >= edges[0]]
-                            for v in (values(ref_tree, name), values(new_tree, name)))
+                            for v in (values(ref_tree, name, ref_mask), values(new_tree, name, new_mask)))
                 key = var_key(name)
                 if all(v is None or len(v) == 0 for v in (ref, new)):
                     out.append(f"| {key} | {summarize(ref)} | {summarize(new)} |")
                     continue
-                fig = plot_one(ref, new, label, edges, f"{sample}: {key}")
+                fig = plot_one(ref, new, label, edges, f"{sample}: {key} ({args.selection})")
                 fig.savefig(sample_dir / f"{key}.png", dpi=110, bbox_inches="tight")
                 pdf.savefig(fig, bbox_inches="tight")
                 plt.close(fig)
