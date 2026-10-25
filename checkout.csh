@@ -2,7 +2,7 @@
 #
 # Instructions:
 # cmsenv
-# wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HZZ_Analysis_Run3/checkout.csh
+# wget -O ${TMPDIR}/checkout.csh https://raw.githubusercontent.com/lwang046/HHbbZZ/HHbbZZ_Analysis_Run3/checkout.csh
 # cd $CMSSW_BASE/src
 # chmod u+x ${TMPDIR}/checkout.csh
 # ${TMPDIR}/checkout.csh

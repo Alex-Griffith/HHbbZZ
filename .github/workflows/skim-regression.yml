@@ -1,0 +1,73 @@
+# Skim regression test: on every PR, build the base-branch code and the PR code in
+# CMSSW, skim the designated test files with both, then compare the outputs.
+name: skim-regression
+
+on:
+  pull_request:
+
+jobs:
+  skim-regression:
+    runs-on: ubuntu-24.04
+    env:
+      CMSSW_RELEASE: CMSSW_15_0_2
+      SCRAM_ARCH: el9_amd64_gcc12
+      SKIM_ARGS: "-n 0"                 # extra post_proc.py arguments; -n 0 = all entries
+      TEST_INPUTS: test_inputs/mc       # trimmed MC test inputs (5000 events each)
+    steps:
+      # Default ref is the PR merge commit (base + PR changes); depth 2 brings its parents.
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - uses: cvmfs-contrib/github-action-cvmfs@v5
+        with:
+          cvmfs_repositories: cms.cern.ch,cms-griddata.cern.ch
+
+      # First parent of the merge commit = base-branch code the PR is merged into.
+      - name: Export base and PR code
+        run: |
+          mkdir -p "$RUNNER_TEMP/src/base" "$RUNNER_TEMP/src/pr" skim
+          git archive HEAD^1 | tar -x -C "$RUNNER_TEMP/src/base"
+          git archive HEAD   | tar -x -C "$RUNNER_TEMP/src/pr"
+
+      - name: Build and skim in CMSSW container
+        run: |
+          ls /cvmfs/cms.cern.ch /cvmfs/cms-griddata.cern.ch > /dev/null
+          docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
+            -v /cvmfs:/cvmfs:shared \
+            -v "$RUNNER_TEMP/src:/src:ro" \
+            -v "$GITHUB_WORKSPACE/$TEST_INPUTS:/inputs:ro" \
+            -v "$GITHUB_WORKSPACE/skim:/out" \
+            -v "$GITHUB_WORKSPACE/ci/run_skims.sh:/run_skims.sh:ro" \
+            -e CMSSW_RELEASE -e SCRAM_ARCH -e SKIM_ARGS \
+            cmssw/el9:x86_64 bash /run_skims.sh
+
+      - name: Compare outputs
+        run: |
+          python3 -m venv "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install -q uproot awkward numpy matplotlib
+          set +e
+          "$RUNNER_TEMP/venv/bin/python" ci/compare_skims.py skim/base skim/pr --report skim/report.md
+          code=$?
+          set -e
+          [ -f skim/report.md ] && cat skim/report.md >> "$GITHUB_STEP_SUMMARY"
+          if [ "$code" -eq 3 ]; then
+            echo "::warning::Skim output differs from base branch - see the job summary"
+            exit 0
+          fi
+          exit "$code"
+
+      # Overlay histograms (jets, leptons, b-tag scores, masses); PNG/PDF go to the artifact.
+      - name: Plot distributions
+        if: always() && hashFiles('skim/base/*.root') != '' && hashFiles('skim/pr/*.root') != ''
+        run: |
+          "$RUNNER_TEMP/venv/bin/python" ci/plot_skims.py skim/base skim/pr \
+            --outdir skim/plots --summary skim/plots_summary.md
+          cat skim/plots_summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: skim-comparison
+          path: skim/
+          retention-days: 14
