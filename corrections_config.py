@@ -17,7 +17,7 @@ from PhysicsTools.NATModules.modules.jetBtag import jetBtag as jetBtag_natlib
 from PhysicsTools.NanoAODTools.postprocessing.modules.common.muonScaleResProducer import (
     muonScaleRes2016, muonScaleRes2017, muonScaleRes2018
 )
-from kFactorProducer import create_kfactor_producer
+from kFactorProducer_Run3 import create_kfactor_producer
 
 
 def get_electron_sf_2022(data_tag, isMC):
@@ -843,24 +843,35 @@ def get_btag_sf_2023(data_tag, isMC):
     )
 '''
 
-def get_kfactor_module(year, file_path, kfactor_dir=None):
-    """
-    Get kFactor correction module for ZZ samples.
-    Passes the full file path to kFactorProducer for robust sample identification.
-    """
-    print(f"[corrections_config] Creating kFactorProducer for file: {file_path}")
+def get_kfactor_module(year, file_path):
+    """Run3 qqZZ / ggZZ k-factor module."""
 
-    path_lower = file_path.lower().strip()
+    if int(str(year)[:4]) < 2022:
+        return None
+
+    path_lower = str(file_path).lower()
 
     is_ggzz = "gluglutocontinto2z" in path_lower
-    is_qqzz = ("zzto4l" in path_lower) and ("glugluhtozzto4l" not in path_lower)
+    is_qqzz = (
+        "zzto4l" in path_lower
+        and not is_ggzz
+        and "glugluhtozzto4l" not in path_lower
+    )
 
-    if is_ggzz or is_qqzz:
-        print(f"[corrections_config] Sample requires k-factors (ggZZ: {is_ggzz}, qqZZ: {is_qqzz})")
-        return create_kfactor_producer(year, file_path, kfactor_dir)
-    else:
-        print(f"[corrections_config] Sample does not require k-factors")
+    if not (is_ggzz or is_qqzz):
         return None
+
+    print(
+        f"[kFactor Run3] year={year}, "
+        f"ggZZ={is_ggzz}, qqZZ={is_qqzz}"
+    )
+
+    return create_kfactor_producer(
+        year=year,
+        sample_path=file_path,
+        gg_order=1,
+        strict=True
+    )
 
 def get_corrections_modules(year, data_tag, first_file, isMC, overwritePt, nanoVersion):
     """

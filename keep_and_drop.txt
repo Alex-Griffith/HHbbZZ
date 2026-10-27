@@ -122,8 +122,15 @@ keep is*
 #
 #
 #       kFactors
-keep qqZZ*
-keep ggZZ*
+# Run3 ggZZ k-factors
+keep KFactor_QCD_ggZZ_*
+#
+# Run3 qqZZ k-factors
+keep KFactor_ZZQQB_*
+#
+# Generator-level variables
+keep GenZZ_mass
+keep LHEMela_costhetastar
 #
 #
 #    check 2l2j
