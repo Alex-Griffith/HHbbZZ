@@ -1,5 +1,5 @@
 #!/bin/bash
-# Runs inside the cmssw/el9 container. Follows README steps 1-4 twice, once for the
+# Runs inside the cmssw/el9 container. Follows README steps 1-5 twice, once for the
 # base-branch code and once for the PR code, each in its own CMSSW area.
 # Mounts: /src/{base,pr} = code, /inputs = test files, /out = skim outputs.
 set -eo pipefail
@@ -47,9 +47,16 @@ for side in base pr; do
   scram b -j "$(nproc)"
   eval "$(scram runtime -sh)"
 
-  # Step 4: run the skim on each test input
-  mkdir -p "/out/$side"
+  # Step 4: MELA package
   cd "$CMSSW_BASE/src/$PKG"
+  git clone https://github.com/JHUGen/JHUGenMELA.git JHUGenMELA
+  (cd JHUGenMELA; git checkout -b from-v242 v2.4.2; ./setup.sh)
+
+  # Step 5: run the skim on each test input, with the MELA environment if the code provides it
+  mkdir -p "/out/$side"
+  if [ -f setup_mela_env.sh ]; then
+    source setup_mela_env.sh
+  fi
   for f in "${inputs[@]}"; do
     python3 post_proc.py -i "$f" $SKIM_ARGS
     mv skimmed_nano.root "/out/$side/$(basename "$f")"

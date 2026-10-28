@@ -31,6 +31,7 @@ jobs:
           git archive HEAD   | tar -x -C "$RUNNER_TEMP/src/pr"
 
       - name: Build and skim in CMSSW container
+        id: skim
         run: |
           ls /cvmfs/cms.cern.ch /cvmfs/cms-griddata.cern.ch > /dev/null
           docker run --rm -u "$(id -u):$(id -g)" -e HOME=/tmp \
@@ -58,9 +59,15 @@ jobs:
           exit "$code"
 
       # Overlay histograms (jets, leptons, b-tag scores, masses); PNG/PDF go to the artifact.
+      # Runs even if the comparison crashed, but only on complete skims, and sets up its
+      # own venv in case the comparison step did not get that far.
       - name: Plot distributions
-        if: always() && hashFiles('skim/base/*.root') != '' && hashFiles('skim/pr/*.root') != ''
+        if: always() && steps.skim.outcome == 'success'
         run: |
+          if [ ! -x "$RUNNER_TEMP/venv/bin/python" ]; then
+            python3 -m venv "$RUNNER_TEMP/venv"
+            "$RUNNER_TEMP/venv/bin/pip" install -q uproot awkward numpy matplotlib
+          fi
           "$RUNNER_TEMP/venv/bin/python" ci/plot_skims.py skim/base skim/pr \
             --outdir skim/plots --summary skim/plots_summary.md
           cat skim/plots_summary.md >> "$GITHUB_STEP_SUMMARY"
