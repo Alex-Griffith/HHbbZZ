@@ -16,6 +16,8 @@ from corrections_config import get_corrections_modules, get_pu_weight_module
 # Custom module imports
 from H4Lmodule import *
 from H4LCppModule import *
+from skim_io import run_postprocessor
+from PhysicsTools.NanoAODTools.postprocessing.framework import postprocessor as postprocessing_framework
 from JetSFMaker import *
 
 def parse_arguments():
@@ -27,6 +29,13 @@ def parse_arguments():
     parser.add_argument("--NOsyst", default=False, action="store_true", help="Do not run systematics")
     parser.add_argument("--overwritePt", default=True, type=bool,help="overwrite muon pt from muon scale and res corrections")
     parser.add_argument("--mode", default="4l2j", choices=["4l", "2l2j", "4l2j"],help="Analysis mode: 4l, 2l2j, or 4l2j")
+    storage = parser.add_mutually_exclusive_group()
+    storage.add_argument("--zx-storage", dest="zx_storage", action="store_true", default=None,
+                         help="Retain nominal FR pass/fail inputs (already enabled by default in 4l)")
+    storage.add_argument("--no-zx-storage", dest="zx_storage", action="store_false",
+                         help="Disable additional FR events for a legacy-acceptance comparison")
+    parser.add_argument("--zx-storage-profile", choices=["fr", "wide"], default="fr",
+                        help="fr: current three-loose/narrow-Z/MET<25 envelope; wide: basic probes without MET/jet cuts")
     return parser.parse_args()
 
 def getListFromFile(filename):
@@ -50,6 +59,10 @@ def main():
     sfFileName = None
     overwritePt = args.overwritePt
     analysisMode = args.mode
+    if args.zx_storage is None:
+        args.zx_storage = analysisMode == "4l"
+    if args.zx_storage and analysisMode == "2l2j":
+        raise ValueError("--zx-storage requires --mode 4l or 4l2j")
 
     entriesToRun = int(args.entriesToRun)
     DownloadFileToLocalThenRun = args.DownloadFileToLocalThenRun
@@ -174,18 +187,20 @@ def main():
     # ---------------------------
     if analysisMode == "2l2j":
         preselection_cut = "Sum$(Muon_pt>20) + Sum$(Electron_pt>25) >= 2"
+    elif args.zx_storage:
+        # Keep correction migrations before the probe acceptance is evaluated.
+        preselection_cut = "nMuon + nElectron >= 3"
     else:
-        # Keep three-lepton Z+X 2P1F events as well as the 4l/4l2j candidates.
         preselection_cut = "Sum$(Muon_pt>3) + Sum$(Electron_pt>5) >= 3"
 
-    # Only the enabled Run-3 MC envelope needs a count-only preselection.
-    # Data and nominal-only runs retain the original raw preselection.
+    # The enabled Run-3 MC envelope also needs a count-only cut in 2l2j mode.
     if isMC and year >= 2022 and not args.NOsyst:
         preselection_cut = "nMuon + nElectron >= %d" % (2 if analysisMode == "2l2j" else 3)
 
     # main analysis module
     modulesToRun.append(HZZAnalysisCppProducer(year, cfgFile, isMC, isFSR, analysisMode, nanoVersion,
-                                               doSystematics=not args.NOsyst))
+                                               doSystematics=not args.NOsyst, storeZX=args.zx_storage,
+                                               zxStorageProfile=args.zx_storage_profile))
 
     print(("Input json file: {}".format(jsonFileName)))
     print(("Input cfg file: {}".format(cfgFile)))
@@ -258,7 +273,7 @@ def main():
             outputbranchsel="keep_and_drop_data.txt"
         )
 
-    p.run()
+    run_postprocessor(p, postprocessing_framework)
 
 
 if __name__ == "__main__":

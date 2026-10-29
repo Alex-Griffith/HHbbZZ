@@ -3,17 +3,20 @@ from PhysicsTools.NanoAODTools.postprocessing.framework.datamodel import Collect
 import ROOT
 import yaml
 import os
+import json
 from array import array
 from Helper import *
 from selection_variations import VIEWS, FIELDS, shifted_value, validate_inputs, snapshot, fill_results
+from zx_storage import zx_storage
+from trigger_selection import TriggerSelection
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 
 class HZZAnalysisCppProducer(Module):
-    def __init__(self, year, cfgFile, isMC, isFSR, analysisMode, nanoVersion, doSystematics=True):
+    def __init__(self, year, cfgFile, isMC, isFSR, analysisMode, nanoVersion, doSystematics=True, storeZX=None, zxStorageProfile="fr"):
         base = "$CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim"
 
-        if "/GenAnalysis_cc.so" not in ROOT.gSystem.GetLibraries():
+        if isMC and "/GenAnalysis_cc.so" not in ROOT.gSystem.GetLibraries():
             print("Load GenAnalysis C++ module")
             base = "$CMSSW_BASE/src/PhysicsTools/NanoAODTools/python/postprocessing/analysis/nanoAOD_skim"
             if base:
@@ -37,11 +40,16 @@ class HZZAnalysisCppProducer(Module):
         self.isMC = isMC
         self.analysisMode = analysisMode
         self.nanoVersion = nanoVersion
-        self.genworker = ROOT.GenAnalysis()
+        self.genworker = ROOT.GenAnalysis() if isMC else None
 
         self.isFSR = isFSR
         with open(cfgFile, 'r') as ymlfile:
             self.selectionConfig = yaml.full_load(ymlfile)
+        self.triggerSelection = TriggerSelection(self.selectionConfig['Triggers'])
+        self.storeZX = analysisMode == "4l" if storeZX is None else storeZX
+        if zxStorageProfile not in ("fr", "wide"):
+            raise ValueError("Unknown ZX storage profile: " + zxStorageProfile)
+        self.zxStorageProfile = zxStorageProfile
         self.worker = self._make_worker()
         self.views = VIEWS if self.isMC and doSystematics and self.year >= 2022 else VIEWS[:1]
         self.variationWorker = self._make_worker() if len(self.views) > 1 else None
@@ -109,15 +117,15 @@ class HZZAnalysisCppProducer(Module):
         print(("PassZZSelection: " + str(self.passZZEvts) + " Events"))
 
         if self.isMC:
-            print(("PassGEN4eCut: " + str(self.genworker.nGEN4e) + " Events"))
-            print(("PassGEN4eZ1Cut: " + str(self.genworker.nGEN4epassZ1) + " Events"))
-            print(("PassGEN4efidCut: " + str(self.genworker.nGEN4epassFid) + " Events"))
-            print(("PassGEN2e2muCut: " + str(self.genworker.nGEN2e2mu) + " Events"))
-            print(("PassGEN2e2muZ1Cut: " + str(self.genworker.nGEN2e2mupassZ1) + " Events"))
-            print(("PassGEN2e2mufidCut: " + str(self.genworker.nGEN2e2mupassFid) + " Events"))
-            print(("PassGEN4muCut: " + str(self.genworker.nGEN4mu) + " Events"))
-            print(("PassGEN4muZ1Cut: " + str(self.genworker.nGEN4mupassZ1) + " Events"))
-            print(("PassGEN4mufidCut: " + str(self.genworker.nGEN4mupassFid) + " Events"))
+            print(("RetainedGEN4eCut: " + str(self.genworker.nGEN4e) + " Events"))
+            print(("RetainedGEN4eZ1Cut: " + str(self.genworker.nGEN4epassZ1) + " Events"))
+            print(("RetainedGEN4efidCut: " + str(self.genworker.nGEN4epassFid) + " Events"))
+            print(("RetainedGEN2e2muCut: " + str(self.genworker.nGEN2e2mu) + " Events"))
+            print(("RetainedGEN2e2muZ1Cut: " + str(self.genworker.nGEN2e2mupassZ1) + " Events"))
+            print(("RetainedGEN2e2mufidCut: " + str(self.genworker.nGEN2e2mupassFid) + " Events"))
+            print(("RetainedGEN4muCut: " + str(self.genworker.nGEN4mu) + " Events"))
+            print(("RetainedGEN4muZ1Cut: " + str(self.genworker.nGEN4mupassZ1) + " Events"))
+            print(("RetainedGEN4mufidCut: " + str(self.genworker.nGEN4mupassFid) + " Events"))
             
         if self.analysisMode == "2l2j":
             print("========== 2l2j Cutflow ==========")
@@ -136,6 +144,32 @@ class HZZAnalysisCppProducer(Module):
         self._branchTree = None
         self._inputBranches = None
         self.out = wrappedOutputTree
+        input_names = sorted(b.GetName() for b in inputTree.GetListOfBranches())
+        self.storageMetadata = dict(
+            schemaVersion=2, enabled=self.storeZX, mode=self.analysisMode,
+            profile=self.zxStorageProfile,
+            storageCuts=(dict(exactLooseLeptons=3, metMax=25., zMassDistanceMax=7.,
+                              tagLeadingPtMin=20., tagSubleadingPtMin=10.,
+                              pairDeltaRMin=.02, oppositeSignPairMassMin=4.,
+                              jetCountMin=None, probeTightRequired=False)
+                         if self.zxStorageProfile == "fr" else
+                         dict(basicLeptonsMin=3, metMax=None, jetCountMin=None)),
+            year=self.year, nanoVersion=self.nanoVersion, isMC=self.isMC,
+            isFSR=self.isFSR, selection=self.selectionConfig,
+            inputFile=inputFile.GetName(),
+            inputBranches=[name for name in input_names
+                           if name.startswith(('HLT_', 'TrigObj_', 'Flag_')) or name == 'nTrigObj'],
+            objectBranches=[name for name in input_names
+                            if name.startswith(('Electron_', 'Muon_', 'Jet_', 'PuppiMET_'))
+                            or name in ('nElectron', 'nMuon', 'nJet')],
+            cmsswVersion=os.environ.get('CMSSW_VERSION'),
+            rootVersion=ROOT.gROOT.GetVersion(),
+            genDiagnosticsScope="retained events" if self.isMC else "not applicable")
+
+        self.out.branch("passedZPlusLStorage", "O")
+        for collection in ("Electron", "Muon"):
+            for decision in ("Loose", "Tight"):
+                self.out.branch(collection + "_ZX" + decision, "O", lenVar="n" + collection)
 
         for field, kind in FIELDS.items():
             self.out.branch("Sel_" + field, kind, lenVar="nSel")
@@ -319,6 +353,12 @@ class HZZAnalysisCppProducer(Module):
             metadata.Fill()
         metadata.Write()
         metadata.SetDirectory(0)
+        storage = ROOT.TTree("ZXStorageConfig", "Z+lepton storage configuration and input schema")
+        payload = ROOT.std.string(json.dumps(self.storageMetadata, sort_keys=True))
+        storage.Branch("configJSON", payload)
+        storage.Fill()
+        storage.Write()
+        storage.SetDirectory(0)
 
     def initReaders(self, tree):
         self._ttreereaderversion = tree._ttreereaderversion
@@ -522,7 +562,7 @@ class HZZAnalysisCppProducer(Module):
         phiL4 = -99
         massL4 = -99
 
-        passedTrig = PassTrig(event, self.cfgFile)
+        passedTrig = self.triggerSelection(event)
         if passedTrig:
             self.passtrigEvts += 1
         else:
@@ -539,6 +579,36 @@ class HZZAnalysisCppProducer(Module):
         hasUPT = "Jet_btagUParTAK4B" in branches
         preferUPT = (self.nanoVersion >= 15)
         useUPT = hasUPT and (preferUPT or not hasRPT)
+        validate_inputs(event, self.views)
+        foundZZCandidate, foundZXCRCandidate = self._select(event, self.worker)
+        met = (float(event.PuppiMET_pt) if "PuppiMET_pt" in branches else
+               float(event.MET_pt) if "MET_pt" in branches else float("nan"))
+        keepForFR, zxMasks = zx_storage(self.worker, len(electrons), len(muons),
+                                       self.analysisMode, self.zxStorageProfile, met)
+        keepForFR = keepForFR and self.storeZX
+        self.out.fillBranch("passedZPlusLStorage", keepForFR)
+        for name, values in zxMasks.items():
+            self.out.fillBranch(name, values)
+        keepIt = keepIt or keepForFR
+        isSR = bool(foundZZCandidate)
+        isZXCR = bool(foundZXCRCandidate)
+        
+        passedZ1LSelection = bool(self.worker.passedZXCR2P1FSelection)
+        passedZXCRSelection = bool(self.worker.passedZXCR2P2FSelection or
+                                   self.worker.passedZXCR3P1FSelection)
+        if foundZXCRCandidate:
+            keepIt = True
+
+        # Decide the complete event union before building output-only data.
+        # The nominal worker stays intact; shifted snapshots use their own worker.
+        variation_results = []
+        for view in self.views[1:]:
+            sr, cr = self._select(event, self.variationWorker, view, self.worker, met)
+            variation_results.append(snapshot(self.variationWorker, sr, cr, self.analysisMode))
+        if not (keepIt or foundZZCandidate or
+                any(row['isSR'] or row['isZXCR'] for row in variation_results)):
+            return False
+        
         if isMC:
             nGenPart = event.nGenPart
             genparts = Collection(event, "GenPart")
@@ -550,19 +620,6 @@ class HZZAnalysisCppProducer(Module):
                     xg.pt, xg.eta, xg.phi, xg.mass,
                     xg.pdgId, xg.status, xg.genPartIdxMother
                 )
-
-        validate_inputs(event, self.views)
-        foundZZCandidate, foundZXCRCandidate = self._select(event, self.worker)
-        isSR = bool(foundZZCandidate)
-        isZXCR = bool(foundZXCRCandidate)
-        
-        passedZ1LSelection = bool(self.worker.passedZXCR2P1FSelection)
-        passedZXCRSelection = bool(self.worker.passedZXCR2P2FSelection or
-                                   self.worker.passedZXCR3P1FSelection)
-        if foundZXCRCandidate:
-            keepIt = True
-        
-        if isMC:
             self.genworker.SetGenVariables()
             GENmass4l = self.genworker.GENmass4l
             GENpT4l = self.genworker.GENpT4l
@@ -649,7 +706,10 @@ class HZZAnalysisCppProducer(Module):
         njets_recovered = -1
 
         GENlep_id = []
-        GENlep_Hindex = []
+        # Shares GENHlepNum with the four reconstructed lep_Hindex entries.
+        # An empty data array would later be read as length four from a stale
+        # buffer when the reconstructed branch updates their shared count.
+        GENlep_Hindex = [] if isMC else [-1] * 4
         GENZ_DaughtersId = []
         GENZ_MomId = []
         GENlep_MomId = []
@@ -1192,12 +1252,7 @@ class HZZAnalysisCppProducer(Module):
             self.out.fillBranch("recoverJet_passMjj", recoverJet_passMjj)
             self.out.fillBranch("recoverJet_idx", recoverJet_idx)
 
-        results = [snapshot(self.worker, foundZZCandidate, foundZXCRCandidate, self.analysisMode)]
-        met = (float(event.PuppiMET_pt) if "PuppiMET_pt" in branches else
-               float(event.MET_pt) if "MET_pt" in branches else float("nan"))
-        for view in self.views[1:]:
-            sr, cr = self._select(event, self.variationWorker, view, self.worker, met)
-            results.append(snapshot(self.variationWorker, sr, cr, self.analysisMode))
+        results = [snapshot(self.worker, foundZZCandidate, foundZXCRCandidate, self.analysisMode)] + variation_results
         keepIt = fill_results(self.out, results) or keepIt
 
         return keepIt

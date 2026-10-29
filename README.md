@@ -133,3 +133,14 @@ scramv1 b -j 8
 For production that retains jets for later dijet selections, use `--mode 4l`.
 See [inclusive 4l and downstream jet studies](docs/inclusive_4l_jets.md) for
 retained branches, jet-only commands and validation checks.
+
+`--mode 4l` also retains the inputs for subsequent Z+X fake-rate measurement by
+default: nominal three-loose-lepton pass/fail events with the current narrow-Z,
+tag-pT, pair and MET<25 GeV cuts, without a jet-count requirement. These events
+are added to the existing nominal/shifted SR and application-CR union. Full
+Electron/Muon and Jet collections, FSR associations, HLT/TrigObj/Flag inputs,
+original-index loose/tight masks and per-input configuration metadata are kept.
+Use the SR/CR flags when selecting those regions; Events membership alone is
+not a signal selection. See [Z+X storage](docs/zx_storage.md) for the envelope,
+the explicit wide option, the legacy comparison switch and downstream limits.
+The bounded native validation uses CMSSW_15_0_2 and ROOT 6.32.11.

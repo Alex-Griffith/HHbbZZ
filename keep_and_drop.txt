@@ -35,6 +35,10 @@ keep PS*
 #     Trigger
 # keep L1*
 # keep HLT*
+keep HLT*
+keep nTrigObj
+keep TrigObj_*
+keep Flag_*
 #
 #
 #     Leptons

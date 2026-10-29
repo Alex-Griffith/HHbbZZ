@@ -17,8 +17,12 @@ keep PV*
 #     Trigger
 #
 #keep HLT*
+keep HLT*
+keep nTrigObj
+keep TrigObj_*
 #
 #keep Flag*
+keep Flag_*
 #
 #
 keep *4l
