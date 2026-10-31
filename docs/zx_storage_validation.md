@@ -1,5 +1,11 @@
 # Z+X retention validation and storage budget
 
+The tables below record the **2026-10-29 schemaVersion 2** SIP-limited default.
+The 2026-10-31 schemaVersion 3 adds no-SIP loose masks, the union of both
+three-loose FR envelopes and separate no-SIP application inputs. The old full
+campaign storage estimate does not include this extension. See the dated
+three-layer comparison below for the new bounded measurements.
+
 2026-10-29. Base: Run3 commit `85fd0cfe94ac43817d7db75022548e3f4beb5afd`.
 The bounded native runtime is CMSSW_15_0_2, ROOT 6.32.11 and uv-managed
 Python 3.9.23. Tests use fixed raw 2024 NanoAOD prefixes, seed 12345, the same
@@ -157,3 +163,60 @@ With old files retained, the default would write about 187.2 GB of new files
 in addition to the reused 26.5 GB already counted. Keeping both all per-file
 outputs and an equally sized merged copy can nearly double that new volume.
 No full production, merge or deletion was performed for these measurements.
+
+## 2026-10-31: three-layer retention, schemaVersion 3
+
+The comparison baseline is the already optimized `94c4ad5` default, not the
+unoptimized teacher producer. The new default retains no-SIP loose, current
+with-SIP loose and unchanged CR-tight masks, both three-loose FR envelopes,
+and separate no-SIP four-lepton application inputs. SR and existing CR selectors
+are unchanged. No-SIP construction and storage run only once on nominal inputs;
+the original 13 MC selection views are retained.
+
+Four fixed raw prefixes (140,000 events total), seed 12345, the same corrections
+and LZMA:9 were rerun sequentially in CMSSW_15_0_2 / ROOT 6.32.11 /
+uv-managed Python 3.9.23. Each process explicitly loads the C++ files from its
+source snapshot before timing, rather than the runtime's historical checkout.
+
+| Input | Raw prefix | Saved before → after | ROOT MB before → after | Size change | Event-loop CPU s before → after |
+|---|---:|---:|---:|---:|---:|
+| WZ | 5,000 | 42 → 43 | 0.408914 → 0.415147 | +1.52% | 6.075 → 6.289 |
+| Data Run2024H EGamma0 | 100,000 | 23 → 48 | 0.284448 → 0.350289 | +23.15% | 11.421 → 11.084 |
+| ggZZ→4e | 5,000 | 1,576 → 1,603 | 4.485035 → 4.561842 | +1.71% | 16.202 → 15.620 |
+| DY→mu mu | 30,000 | 348 → 486 | 3.320708 → 3.586888 | +8.02% | 18.497 → 18.773 |
+
+MB are decimal. These are within-input comparisons; DY includes full input
+file metadata, while the other fixtures omit raw MetaData/ParameterSets.
+Do not extrapolate a size multiplier across processes or use the earlier
+schemaVersion 2 campaign budget for this new default.
+
+A separate WZ storage-disabled control keeps exactly 4 events in both versions:
+CPU 5.639 → 5.832 s (+3.4%), bytes 235026 → 235743. The three-layer bookkeeping
+cost is small in this fixture. CPU differences for the default runs range from
+about -3.6% to +3.5%; the negative differences are not evidence of a new speed
+optimization. Main-flow wall times (before → after) were WZ 19.515 → 9.417 s,
+data 47.475 → 18.043 s, ggZZ 28.467 → 21.737 s; cache/I/O variation makes them
+unsuitable for claiming an acceleration. Full timings are retained in the
+measurement JSON. Startup/C++ loading and post-run validation are outside the
+reported main-flow timer.
+
+All old events survive, and no added event passes nominal or shifted SR/CR.
+Existing physical branches and ZXLoose/ZXTight masks match exactly on common
+events; only the deliberately broadened passedZPlusLStorage decision is excluded
+from scalar equality, with old true decisions explicitly required to remain true.
+The five comparisons check 6,370,381 scalars, including identical representations
+for five input NaNs. Runs, LuminosityBlocks and SelectionViews also agree.
+In ggZZ the original 1,210 SR, 40 CR and five variation-only events are unchanged.
+
+All ten completed outputs pass job-report checks. The new outputs pass ROOT
+integrity/schema/mask validation, including independent reconstruction of both
+loose masks from the saved object inputs. Local unit tests: 27 pass.
+`tests/check_zx_layers_root.py` passes native worker tests for electron SIP=4 and
+muon SIP=8 boundaries, ID versus SIP failures, dxy boundaries, repeated calls,
+event reset and read-only no-SIP application retention with candidate jet cuts.
+
+Two attempts were interrupted with an SSH/session loss before a complete
+result (initial compilation smoke test and first DY-after attempt). Their
+partial logs/outputs were retained and excluded from all counts and timings.
+Only the unfinished DY-after and WZ-off tests were resumed, using a foreground
+connection with periodic progress. No full production or PR was started.

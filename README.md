@@ -139,7 +139,10 @@ default: nominal three-loose-lepton pass/fail events with the current narrow-Z,
 tag-pT, pair and MET<25 GeV cuts, without a jet-count requirement. These events
 are added to the existing nominal/shifted SR and application-CR union. Full
 Electron/Muon and Jet collections, FSR associations, HLT/TrigObj/Flag inputs,
-original-index loose/tight masks and per-input configuration metadata are kept.
+original-index no-SIP loose, with-SIP loose and tight masks, and per-input
+configuration metadata are kept. The default FR envelope is the union of
+the two three-loose definitions; no-SIP four-lepton application inputs are
+retained separately without changing the existing SR/CR flags.
 Use the SR/CR flags when selecting those regions; Events membership alone is
 not a signal selection. See [Z+X storage](docs/zx_storage.md) for the envelope,
 the explicit wide option, the legacy comparison switch and downstream limits.

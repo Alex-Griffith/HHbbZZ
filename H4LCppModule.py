@@ -146,16 +146,25 @@ class HZZAnalysisCppProducer(Module):
         self.out = wrappedOutputTree
         input_names = sorted(b.GetName() for b in inputTree.GetListOfBranches())
         self.storageMetadata = dict(
-            schemaVersion=2, enabled=self.storeZX, mode=self.analysisMode,
+            schemaVersion=3, enabled=self.storeZX, mode=self.analysisMode,
             profile=self.zxStorageProfile,
             storageCuts=(dict(exactLooseLeptons=3, metMax=25., zMassDistanceMax=7.,
                               tagLeadingPtMin=20., tagSubleadingPtMin=10.,
                               pairDeltaRMin=.02, oppositeSignPairMassMin=4.,
-                              jetCountMin=None, probeTightRequired=False)
+                              jetCountMin=None, probeTightRequired=False,
+                              looseDefinitions=["withSIP", "noSIP"], combine="union")
                          if self.zxStorageProfile == "fr" else
                          dict(basicLeptonsMin=3, metMax=None, jetCountMin=None)),
             year=self.year, nanoVersion=self.nanoVersion, isMC=self.isMC,
             isFSR=self.isFSR, selection=self.selectionConfig,
+            leptonLayers=dict(
+                LooseNoSIP="configured pt/eta/type/dxy/dz, no SIP/analysis-ID/isolation cut",
+                Loose="unchanged nominal CR loose including configured SIP",
+                Tight="unchanged full CR tight including electron cross-cleaning"),
+            noSIPApplicationStorage=dict(enabled=self.storeZX,
+                nominalOnly=True, minLooseLeptons=4,
+                selector="existing OS 3P1F/2P2F kinematics with no-SIP loose",
+                jetCountMin=max(2, self.selectionConfig['Jet']['Ncut'])),
             inputFile=inputFile.GetName(),
             inputBranches=[name for name in input_names
                            if name.startswith(('HLT_', 'TrigObj_', 'Flag_')) or name == 'nTrigObj'],
@@ -167,8 +176,9 @@ class HZZAnalysisCppProducer(Module):
             genDiagnosticsScope="retained events" if self.isMC else "not applicable")
 
         self.out.branch("passedZPlusLStorage", "O")
+        self.out.branch("passedZXNoSIPCRStorage", "O")
         for collection in ("Electron", "Muon"):
-            for decision in ("Loose", "Tight"):
+            for decision in ("LooseNoSIP", "Loose", "Tight"):
                 self.out.branch(collection + "_ZX" + decision, "O", lenVar="n" + collection)
 
         for field, kind in FIELDS.items():
@@ -583,13 +593,16 @@ class HZZAnalysisCppProducer(Module):
         foundZZCandidate, foundZXCRCandidate = self._select(event, self.worker)
         met = (float(event.PuppiMET_pt) if "PuppiMET_pt" in branches else
                float(event.MET_pt) if "MET_pt" in branches else float("nan"))
+        self.worker.BuildZXLooseNoSIP()
         keepForFR, zxMasks = zx_storage(self.worker, len(electrons), len(muons),
                                        self.analysisMode, self.zxStorageProfile, met)
         keepForFR = keepForFR and self.storeZX
         self.out.fillBranch("passedZPlusLStorage", keepForFR)
+        keepNoSIPCR = self.storeZX and bool(self.worker.ZXNoSIPCRStorage())
+        self.out.fillBranch("passedZXNoSIPCRStorage", keepNoSIPCR)
         for name, values in zxMasks.items():
             self.out.fillBranch(name, values)
-        keepIt = keepIt or keepForFR
+        keepIt = keepIt or keepForFR or keepNoSIPCR
         isSR = bool(foundZZCandidate)
         isZXCR = bool(foundZXCRCandidate)
         

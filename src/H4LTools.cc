@@ -441,6 +441,67 @@ void H4LTools::LeptonSelection(){
     }
 }
 
+void H4LTools::BuildZXLooseNoSIP(){
+    // Called once for nominal storage, after the unchanged SR/CR selections.
+    // Keep the configured acceptance/type/dxy/dz; remove only the SIP gate.
+    ZXLooseLeptonsNoSIP.clear();
+    const auto append = [&](unsigned int source, bool electron){
+        for (const auto& lepton : ZXLooseLeptons){
+            if ((std::abs(lepton.pdgId) == 11) == electron &&
+                lepton.sourceIndex == static_cast<int>(source)){
+                // Preserve the selected p4 and final cross-cleaned tight flag.
+                ZXLooseLeptonsNoSIP.push_back(lepton);
+                return;
+            }
+        }
+        TLorentzVector bare;
+        if (electron){
+            bare.SetPtEtaPhiM(Electron_pt[source], Electron_eta[source],
+                             Electron_phi[source], Electron_mass[source]);
+            ZXLooseLeptonsNoSIP.push_back({bare, isFSR ? Electrondressed_Run3[source] : bare,
+                Electron_pdgId[source], static_cast<int>(source), -1,
+                isMC ? Electron_genPartIdx[source] : -1, false});
+        } else {
+            bare.SetPtEtaPhiM(Muon_pt[source], Muon_eta[source],
+                             Muon_phi[source], Muon_mass[source]);
+            ZXLooseLeptonsNoSIP.push_back({bare, isFSR ? Muondressed_Run3[source] : bare,
+                Muon_pdgId[source], static_cast<int>(source), -1,
+                isMC ? Muon_genPartIdx[source] : -1, false});
+        }
+    };
+    for (const auto source : goodLooseElectrons2012()){
+        if (std::fabs(Electron_dxy[source]) < eleLoosedxycut &&
+            std::fabs(Electron_dz[source]) < eleLoosedzcut) append(source, true);
+    }
+    for (const auto source : goodLooseMuons2012()){
+        if ((Muon_isGlobal[source] || Muon_isTracker[source]) &&
+            std::fabs(Muon_dxy[source]) < MuLoosedxycut &&
+            std::fabs(Muon_dz[source]) < MuLoosedzcut) append(source, false);
+    }
+}
+
+bool H4LTools::ZXNoSIPCRStorage() const {
+    if ((analysisMode != "4l" && analysisMode != "4l2j") ||
+        ZXLooseLeptonsNoSIP.size() < 4) return false;
+    const auto candidate = h4l::selectZXCandidate(
+        ZXLooseLeptonsNoSIP, 0., Zmass, MZcutdown, MZcutup, MZ1cut, MZZcut);
+    if (candidate.region < 2) return false;
+    // Same candidate-specific >=2-jet requirement as the existing application CR.
+    // Read-only: do not overwrite nominal candidates, jet lists or SR/CR flags.
+    int count = 0;
+    for (unsigned int j = 0; j < Jet_pt.size(); ++j){
+        if (!(Jet_pt[j] > JetPtcut && std::fabs(Jet_eta[j]) < JetEtacut && Jet_jetId[j] > 0)) continue;
+        TLorentzVector jet;
+        jet.SetPtEtaPhiM(Jet_pt[j], Jet_eta[j], Jet_phi[j], Jet_mass[j]);
+        bool overlap = false;
+        for (const auto index : candidate.leptons){
+            if (jet.DeltaR(ZXLooseLeptonsNoSIP[index].p4) < 0.4) { overlap = true; break; }
+        }
+        if (!overlap && ++count >= std::max(2, JetNcut)) return true;
+    }
+    return false;
+}
+
 bool H4LTools::findZCandidate(){
 
     if (nTightEle>=4) {

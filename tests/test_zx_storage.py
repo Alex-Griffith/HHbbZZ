@@ -35,8 +35,10 @@ def lepton(pdg, index, tight=True, energy=45.5):
                            p4=RestVector(energy), bareP4=RestVector(energy))
 
 
-def worker(leptons, electrons=2, muons=1):
-    return SimpleNamespace(ZXLooseLeptons=leptons, Zmass=91.1876, MZcutdown=12., MZcutup=120.,
+def worker(leptons, electrons=2, muons=1, no_sip=None):
+    return SimpleNamespace(ZXLooseLeptons=leptons,
+                           ZXLooseLeptonsNoSIP=leptons if no_sip is None else no_sip,
+                           Zmass=91.1876, MZcutdown=12., MZcutup=120.,
                            goodLooseElectrons2012=lambda: list(range(electrons)),
                            goodLooseMuons2012=lambda: list(range(muons)))
 
@@ -138,6 +140,27 @@ class FRStorageTest(unittest.TestCase):
     def test_unknown_profile_is_an_error(self):
         with self.assertRaisesRegex(ValueError, 'Unknown ZX storage profile'):
             zx_storage(worker(self.leptons), 2, 1, '4l', profile='typo', met=10.)
+
+    def test_sip_failing_probe_is_kept_without_changing_tight(self):
+        w = worker(self.leptons[:2], no_sip=self.leptons)
+        keep, masks = zx_storage(w, 2, 1, '4l', met=10.)
+        self.assertTrue(keep)
+        self.assertEqual(masks['Muon_ZXLooseNoSIP'], [True])
+        self.assertEqual(masks['Muon_ZXLoose'], [False])
+        self.assertEqual(masks['Muon_ZXTight'], [False])
+
+    def test_legacy_three_sip_loose_survives_an_extra_no_sip_lepton(self):
+        no_sip = self.leptons + [lepton(-13, 1, False)]
+        keep, masks = zx_storage(worker(self.leptons, no_sip=no_sip), 2, 2, '4l', met=10.)
+        self.assertTrue(keep)
+        self.assertEqual(masks['Muon_ZXLooseNoSIP'], [True, True])
+        self.assertEqual(masks['Muon_ZXLoose'], [True, False])
+
+    def test_no_sip_probe_still_obeys_fr_kinematics(self):
+        w = worker(self.leptons[:2], no_sip=self.leptons)
+        self.assertFalse(zx_storage(w, 2, 1, '4l', met=25.)[0])
+        self.leptons[1].p4 = RestVector(30.)
+        self.assertFalse(zx_storage(w, 2, 1, '4l', met=10.)[0])
 
 
 if __name__ == "__main__":

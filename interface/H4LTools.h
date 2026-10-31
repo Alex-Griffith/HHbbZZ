@@ -173,6 +173,10 @@ class H4LTools {
       bool passedZXCR3P1FSelection = false;
       int nZXCRFailedLeptons = 0;
       std::vector<h4l::ZXLepton> ZXLooseLeptons;
+      // Separate nominal storage inputs; never replace the SR/CR collections.
+      std::vector<h4l::ZXLepton> ZXLooseLeptonsNoSIP;
+      void BuildZXLooseNoSIP();
+      bool ZXNoSIPCRStorage() const;
       int ZXCRPdgId[4] = {0, 0, 0, 0};
       bool ZXCRTight[4] = {false, false, false, false};
       std::vector<unsigned int> goodLooseElectrons2012();
@@ -263,6 +267,7 @@ class H4LTools {
         passedZXCR3P1FSelection = false;
         nZXCRFailedLeptons = 0;
         ZXLooseLeptons.clear();
+        ZXLooseLeptonsNoSIP.clear();
         for (int i = 0; i < 4; ++i){ ZXCRPdgId[i] = 0; ZXCRTight[i] = false; }
         Elelist.clear();
         Mulist.clear();

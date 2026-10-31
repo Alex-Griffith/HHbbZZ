@@ -1,7 +1,7 @@
 # Single-pass 4l storage for Z+X
 
 The output event union is the existing nominal/shifted SR and ZXCR union **or**
-`passedZPlusLStorage`. The latter is a nominal-only storage flag, not a measured
+`passedZPlusLStorage` **or** `passedZXNoSIPCRStorage`. These are nominal-only storage flags, not a measured
 fake-rate region, a fourth SR/CR category, or a replacement for existing flags.
 `post_proc.py --mode 4l` enables the recommended FR envelope by default, on both
 data and MC. No extra production switch is required. Use `--no-zx-storage`
@@ -13,9 +13,10 @@ while 2l2j rejects the storage option.
 ## Default FR storage envelope
 
 - Apply the existing configured trigger OR and data golden JSON as before.
-- Require exactly three current nominal CR-loose leptons, with a tight
-  opposite-sign same-flavour tag pair. Loose/tight membership comes directly
-  from `ZXLooseLeptons`, including the existing electron cross-cleaning.
+- Keep the union of exactly three current CR-loose leptons **or** exactly three
+  no-SIP loose leptons, with a tight opposite-sign same-flavour tag pair.
+  Both use unchanged, cross-cleaned CR-tight decisions. Check the two counts
+  independently: adding a no-SIP object cannot veto an old FR event.
 - Use the selected FSR-dressed tag p4 when FSR is enabled, the configured broad
   tag mass bounds, |m(tag)-configured Zmass|<7 GeV, and tag pT>20/10 GeV.
 - Apply the current bare-lepton pair cuts: DeltaR>0.02 for every pair and
@@ -26,10 +27,22 @@ while 2l2j rejects the storage option.
   SR/CR events are retained regardless of this envelope. In particular, these
   MET/three-loose cuts are never applied globally to the existing SR/CR union.
 
-The default fixes the current loose, tag, multiplicity and low-MET envelope.
-It supports FR binning, trigger matching and jet/b-tag studies within that
-envelope. It cannot recover probes outside the current loose definition or
-new MET>=25 regions. These would need a deliberately broader production.
+No-SIP loose retains configured pT/eta/type/dxy/dz and removes only SIP;
+it does not require final analysis ID or isolation. Existing with-SIP loose
+and tight definitions are unchanged. This adopts HZZ4l's layered design,
+not its numerical pT thresholds, muon ID or FSR algorithm.
+The default fixes tag, multiplicity and low-MET cuts. Changes beyond these
+two loose definitions, including MET>=25, require broader inputs.
+
+## No-SIP four-lepton application inputs
+
+`passedZXNoSIPCRStorage` separately retains nominal OS 3P1F/2P2F candidates
+built from no-SIP loose leptons with the existing pair, tag, pT, m4l,
+smart-cut and candidate-cleaned >=max(2, JetNcut) jet requirements. No MET cut
+is imposed on these four-lepton inputs. Fully tight candidates retain priority.
+This read-only storage check never changes SR/CR candidates, jets or flags;
+the original application CR still uses its with-SIP loose list. Downstream
+code must rebuild the no-SIP application candidate from full objects/masks.
 
 ## Explicit wide storage envelope
 
@@ -59,16 +72,21 @@ New derived branches:
 | Branch | Meaning |
 | --- | --- |
 | passedZPlusLStorage | Event satisfies the nominal storage envelope above |
+| passedZXNoSIPCRStorage | Event satisfies the separate no-SIP four-lepton application storage |
+| Electron_ZXLooseNoSIP, Muon_ZXLooseNoSIP | Configured pT/eta/type/dxy/dz without SIP or final analysis ID/isolation |
 | Electron_ZXLoose, Muon_ZXLoose | Exact membership in the current nominal CR loose list, indexed by the original Electron/Muon collection |
 | Electron_ZXTight, Muon_ZXTight | Tight status within that loose list, including CR electron cross-cleaning |
 
-No best Z/probe is forced by the storage layer. Rebuild and rank pairs/probes
+No best Z/probe assignment is written by the storage masks. Rebuild and rank pairs/probes
 from the full saved collections, the masks and FSR associations in downstream
 code. Retain all candidate/probe choices until the measurement prescription is
 fixed. In particular, a saved event is not one fake-rate denominator entry by
 default. For the existing prescription, select exactly three current CR-loose
 leptons, tight OS-SF Z tags and one loose probe; form pass as a subset of this
 same denominator using its ZXTight mask, after the remaining measurement cuts.
+For a no-SIP denominator, instead use ZXLooseNoSIP and the same full ZXTight
+numerator. Tight is a subset of ZXLoose, which is a subset of ZXLooseNoSIP.
+Rates for these different denominators must not be interchanged.
 
 Newly kept input branches in both data and MC: `HLT*`, `nTrigObj`, `TrigObj_*`,
 and `Flag_*`. Their absence in a particular NanoAOD schema must be recorded;
@@ -110,14 +128,15 @@ In particular, tight muons in production still use SIP<8, not SIP<4; all
 measurement/application definitions must match the intended selection.
 
 Both profiles fix the existing trigger coverage, input NanoAOD schema and tag
-tight definition. Only the explicit wide profile permits changing the current
-probe-loose, multiplicity and MET/narrow-Z cuts downstream. Neither guarantees
+tight definition. The default now covers both recorded loose layers; only
+the explicit wide profile supports broader dxy/dz, multiplicity and MET/narrow-Z
+changes within its envelope. Neither guarantees
 arbitrary tag, trigger, acceptance or detector-reconstruction changes without
 rereading inputs.
 
 ## Output acceptance and provenance
 
-`ZXStorageConfig` schemaVersion 2 is a one-row-per-input TTree containing JSON
+`ZXStorageConfig` schemaVersion 3 is a one-row-per-input TTree containing JSON
 with the enabled mode, `fr`/`wide` profile and storage thresholds, selection YAML,
 input file, available HLT/TrigObj/Flag and Electron/Muon/Jet/PuppiMET schemas,
 and actual CMSSW/ROOT versions. Merge preserves individual input rows, including schema
@@ -129,7 +148,8 @@ luminosity ledger. For partial tests record the input entry limit explicitly.
 `ci/check_zx_storage.py` validates the persisted event union, nominal flags,
 original-index mask lengths/tight-subset membership and all available retained
 lepton, jet, MET, trigger and quality inputs. It rejects mixed profiles and
-checks the default envelope's loose count and MET. StorageOnly is a separate acceptance category: no SR/CR
+independently reconstructs both loose masks from saved inputs and checks
+the default envelope's loose counts and MET. StorageOnly is a separate acceptance category: no SR/CR
 flag is set to make it pass an older acceptance program. Frozen campaign runners
 are not modified or reused to publish these tests.
 
@@ -168,7 +188,9 @@ and is not the delivered default.
 
 From the repository root, run
 `uv run --no-project --managed-python --python 3.11 python -m unittest discover -s tests -p 'test_*.py'`.
-The tests cover default FR pass/fail symmetry, MET/tag/pair boundaries, wide-probe
+The tests cover both loose-count envelopes, SIP-failing probes, retention of
+old three-loose events with extra no-SIP objects, FR pass/fail symmetry,
+MET/tag/pair boundaries, wide-probe
 retention, original indices, eager trigger errors and finalization restoration,
 together with the existing jet helper tests. See [validation and sizing](zx_storage_validation.md)
 for bounded native comparisons and the storage estimate; these do not constitute

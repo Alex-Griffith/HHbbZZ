@@ -31,11 +31,11 @@ def parse_arguments():
     parser.add_argument("--mode", default="4l2j", choices=["4l", "2l2j", "4l2j"],help="Analysis mode: 4l, 2l2j, or 4l2j")
     storage = parser.add_mutually_exclusive_group()
     storage.add_argument("--zx-storage", dest="zx_storage", action="store_true", default=None,
-                         help="Retain nominal FR pass/fail inputs (already enabled by default in 4l)")
+                         help="Retain nominal FR and no-SIP application inputs (default in 4l)")
     storage.add_argument("--no-zx-storage", dest="zx_storage", action="store_false",
-                         help="Disable additional FR events for a legacy-acceptance comparison")
+                         help="Disable additional storage events for a legacy-acceptance comparison")
     parser.add_argument("--zx-storage-profile", choices=["fr", "wide"], default="fr",
-                        help="fr: current three-loose/narrow-Z/MET<25 envelope; wide: basic probes without MET/jet cuts")
+                        help="fr: union of with-SIP/no-SIP three-loose/narrow-Z/MET<25; wide: basic probes without MET/jet cuts")
     return parser.parse_args()
 
 def getListFromFile(filename):
